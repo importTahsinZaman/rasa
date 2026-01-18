@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toggleSiteStyles, clearSiteStyles } from '../lib/messaging';
+import { compileRulesToCSS } from '../lib/storage';
 import type { SiteStyles } from '../types';
 
 interface StylePreviewProps {
@@ -11,6 +12,10 @@ interface StylePreviewProps {
 export default function StylePreview({ styles, tabId, onStylesChange }: StylePreviewProps) {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  // Compile rules to CSS for display
+  const compiledCSS = useMemo(() => compileRulesToCSS(styles), [styles]);
+  const ruleCount = styles.rules.length;
 
   const handleToggle = async () => {
     setLoading(true);
@@ -40,8 +45,6 @@ export default function StylePreview({ styles, tabId, onStylesChange }: StylePre
     }
   };
 
-  const cssLineCount = styles.css.split('\n').length;
-
   return (
     <div className="style-panel">
       <div className="style-panel__header" onClick={() => setExpanded(!expanded)}>
@@ -55,7 +58,7 @@ export default function StylePreview({ styles, tabId, onStylesChange }: StylePre
             <path fillRule="evenodd" d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L8.94 8 6.22 5.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
           </svg>
           <span className="style-panel__label">Custom Styles</span>
-          <span className="style-panel__meta">{cssLineCount} lines</span>
+          <span className="style-panel__meta">{ruleCount} rule{ruleCount !== 1 ? 's' : ''}</span>
         </button>
 
         <div className="style-panel__actions" onClick={(e) => e.stopPropagation()}>
@@ -90,7 +93,7 @@ export default function StylePreview({ styles, tabId, onStylesChange }: StylePre
       {expanded && (
         <div className="style-panel__content">
           <pre className="message-code max-h-48 overflow-y-auto">
-            {styles.css}
+            {compiledCSS || '/* No styles */'}
           </pre>
           <p className="text-caption mt-3">
             Updated {new Date(styles.updatedAt).toLocaleString()}

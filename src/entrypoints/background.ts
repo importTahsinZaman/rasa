@@ -5,9 +5,10 @@ import {
   saveSiteStyles,
   toggleSiteStyles,
   clearSiteStyles,
-  extractDomain
+  extractDomain,
+  compileRulesToCSS
 } from '../lib/storage';
-import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage } from '../types';
+import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage, StyleOperation } from '../types';
 
 export default defineBackground(() => {
   // Open side panel when extension icon is clicked
@@ -134,44 +135,33 @@ async function handleGenerateStyles(
     const pageContext = contextResponse.data;
     const domain = extractDomain(pageContext.url);
 
-    // Get existing styles if any
-    const existingStyles = await getSiteStyles(domain);
-
-    // Generate new styles with AI (passing conversation history for context)
+    // Generate styles with AI (tool-based approach)
+    // AI will read/write rules directly via tools
     const aiResponse = await generateStyles(
       apiKey,
       prompt,
       pageContext,
-      conversationHistory,
-      existingStyles?.css
+      domain,
+      conversationHistory
     );
 
-    // Combine with existing styles or replace
-    const finalCSS = existingStyles?.css
-      ? `${existingStyles.css}\n\n/* New styles */\n${aiResponse.css}`
-      : aiResponse.css;
+    // Get the updated styles after AI has made changes
+    const updatedStyles = await getSiteStyles(domain);
 
-    // Save styles to storage
-    await saveSiteStyles(domain, {
-      css: finalCSS,
-      enabled: true,
-      createdAt: existingStyles?.createdAt || Date.now(),
-      updatedAt: Date.now()
-    });
+    // Compile rules to CSS and apply to the page
+    if (updatedStyles) {
+      const compiledCSS = compileRulesToCSS(updatedStyles);
 
-    // Apply styles to the page
-    await chrome.tabs.sendMessage(tabId, {
-      type: 'STYLES_UPDATED',
-      css: finalCSS,
-      enabled: true
-    });
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'STYLES_UPDATED',
+        css: compiledCSS,
+        enabled: updatedStyles.enabled
+      });
+    }
 
     return {
       success: true,
-      data: {
-        ...aiResponse,
-        css: finalCSS
-      }
+      data: aiResponse
     };
   } catch (error) {
     console.error('Generate styles error:', error);
@@ -180,7 +170,7 @@ async function handleGenerateStyles(
 }
 
 /**
- * Apply and save CSS styles
+ * Apply and save CSS styles (creates a single rule from raw CSS)
  */
 async function handleApplyAndSaveStyles(
   css: string,
@@ -194,13 +184,28 @@ async function handleApplyAndSaveStyles(
     }
 
     const domain = extractDomain(tab.url);
+    const now = Date.now();
 
-    // Save styles
-    await saveSiteStyles(domain, {
+    // Get existing styles or create new
+    const existingStyles = await getSiteStyles(domain);
+
+    // Create a single rule from the raw CSS (for manual/direct CSS input)
+    const newRule = {
+      id: 'r_' + Math.random().toString(36).substring(2, 10),
+      selector: '(manual)',
       css,
+      description: 'Manually applied CSS',
+      createdBy: 'user' as const,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    // Save styles with the new rule appended
+    await saveSiteStyles(domain, {
+      rules: existingStyles ? [...existingStyles.rules, newRule] : [newRule],
       enabled: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+      createdAt: existingStyles?.createdAt || now,
+      updatedAt: now
     });
 
     // Apply to page

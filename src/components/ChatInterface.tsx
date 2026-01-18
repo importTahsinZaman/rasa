@@ -68,10 +68,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
           role: 'assistant',
           content: response.data.explanation,
           timestamp: Date.now(),
-          styles: {
-            css: response.data.css,
-            selectors: response.data.selectors
-          }
+          operations: response.data.operations
         };
         setMessages(prev => [...prev, assistantMessage]);
         onStylesApplied();

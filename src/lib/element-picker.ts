@@ -72,8 +72,12 @@ export function startPicker(
   onPick: (context: PickedElementContext) => void,
   onCancel: () => void
 ): void {
-  if (isActive) return;
+  if (isActive) {
+    console.log('[Rasa Picker] Already active');
+    return;
+  }
 
+  console.log('[Rasa Picker] Starting picker mode');
   isActive = true;
   onPickCallback = onPick;
   onCancelCallback = onCancel;
@@ -164,41 +168,45 @@ export function isPickerActive(): boolean {
 function handleMouseMove(event: MouseEvent): void {
   if (!isActive || !overlay || !tooltip) return;
 
-  // Get element under cursor (excluding our overlay elements)
-  const target = getElementAtPoint(event.clientX, event.clientY);
+  try {
+    // Get element under cursor (excluding our overlay elements)
+    const target = getElementAtPoint(event.clientX, event.clientY);
 
-  if (!target || target === document.body || target === document.documentElement) {
-    overlay.style.display = 'none';
-    tooltip.style.display = 'none';
-    currentTarget = null;
-    return;
+    if (!target || target === document.body || target === document.documentElement) {
+      overlay.style.display = 'none';
+      tooltip.style.display = 'none';
+      currentTarget = null;
+      return;
+    }
+
+    currentTarget = target;
+
+    // Update overlay position
+    const rect = target.getBoundingClientRect();
+    overlay.style.display = 'block';
+    overlay.style.top = `${rect.top}px`;
+    overlay.style.left = `${rect.left}px`;
+    overlay.style.width = `${rect.width}px`;
+    overlay.style.height = `${rect.height}px`;
+
+    // Update tooltip
+    const selector = generateSelector(target);
+    tooltip.textContent = selector;
+    tooltip.style.display = 'block';
+
+    // Position tooltip below the element (or above if not enough space)
+    const tooltipTop = rect.bottom + 8;
+    const tooltipLeft = Math.max(8, Math.min(rect.left, window.innerWidth - 400));
+
+    if (tooltipTop + 30 > window.innerHeight) {
+      tooltip.style.top = `${rect.top - 30}px`;
+    } else {
+      tooltip.style.top = `${tooltipTop}px`;
+    }
+    tooltip.style.left = `${tooltipLeft}px`;
+  } catch (error) {
+    console.error('[Rasa Picker] mousemove error:', error);
   }
-
-  currentTarget = target;
-
-  // Update overlay position
-  const rect = target.getBoundingClientRect();
-  overlay.style.display = 'block';
-  overlay.style.top = `${rect.top}px`;
-  overlay.style.left = `${rect.left}px`;
-  overlay.style.width = `${rect.width}px`;
-  overlay.style.height = `${rect.height}px`;
-
-  // Update tooltip
-  const selector = generateSelector(target);
-  tooltip.textContent = selector;
-  tooltip.style.display = 'block';
-
-  // Position tooltip below the element (or above if not enough space)
-  const tooltipTop = rect.bottom + 8;
-  const tooltipLeft = Math.max(8, Math.min(rect.left, window.innerWidth - 400));
-
-  if (tooltipTop + 30 > window.innerHeight) {
-    tooltip.style.top = `${rect.top - 30}px`;
-  } else {
-    tooltip.style.top = `${tooltipTop}px`;
-  }
-  tooltip.style.left = `${tooltipLeft}px`;
 }
 
 /**
@@ -223,22 +231,43 @@ function getElementAtPoint(x: number, y: number): Element | null {
  * Handle click - select the element
  */
 function handleClick(event: MouseEvent): void {
-  if (!isActive || !currentTarget) return;
+  if (!isActive) return;
 
   // Prevent the click from doing anything else
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
 
-  // Extract context for the picked element
-  const context = extractElementContext(currentTarget);
+  // If no target yet, try to get one at click position
+  if (!currentTarget) {
+    currentTarget = getElementAtPoint(event.clientX, event.clientY);
+  }
 
-  // Stop picker
-  stopPicker();
+  if (!currentTarget || currentTarget === document.body || currentTarget === document.documentElement) {
+    console.log('[Rasa Picker] No valid element at click position');
+    return;
+  }
 
-  // Call the callback
-  if (onPickCallback) {
-    onPickCallback(context);
+  try {
+    // Extract context for the picked element
+    const context = extractElementContext(currentTarget);
+
+    // Flash the overlay to indicate selection
+    if (overlay) {
+      overlay.style.background = 'rgba(122, 148, 88, 0.5)';
+      setTimeout(() => {
+        if (overlay) {
+          overlay.style.background = 'rgba(122, 148, 88, 0.25)';
+        }
+      }, 150);
+    }
+
+    // Call the callback (picker stays active for more selections)
+    if (onPickCallback) {
+      onPickCallback(context);
+    }
+  } catch (error) {
+    console.error('[Rasa Picker] click error:', error);
   }
 }
 

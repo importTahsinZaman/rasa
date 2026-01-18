@@ -119,9 +119,12 @@ async function handleMessage(
           return { success: true };  // Already active
         }
 
+        console.log('[Rasa Content] Starting element picker');
+
         startPicker(
           // On pick callback
           (context: PickedElementContext) => {
+            console.log('[Rasa Content] Element picked, sending message:', context.selector);
             // Send picked element back to sidepanel via background
             chrome.runtime.sendMessage({
               type: 'ELEMENT_PICKED',
@@ -130,6 +133,7 @@ async function handleMessage(
           },
           // On cancel callback
           () => {
+            console.log('[Rasa Content] Picker cancelled');
             chrome.runtime.sendMessage({
               type: 'ELEMENT_PICKER_CANCELLED'
             });

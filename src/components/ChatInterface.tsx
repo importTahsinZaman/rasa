@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateStyles, startElementPicker, formatPickedElementContext } from '../lib/messaging';
+import { generateStyles, startElementPicker, cancelElementPicker, formatPickedElementContext } from '../lib/messaging';
 import { getChatHistory, saveChatHistory } from '../lib/storage';
 import MessageBubble from './MessageBubble';
 import type { ChatMessage, PickedElementContext } from '../types';
@@ -21,7 +21,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pickerActive, setPickerActive] = useState(false);
-  const [pickedElement, setPickedElement] = useState<PickedElementContext | null>(null);
+  const [pickedElements, setPickedElements] = useState<PickedElementContext[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -46,18 +46,25 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
   // Listen for element picker messages
   useEffect(() => {
     const handleMessage = (message: { type: string; context?: PickedElementContext }) => {
+      console.log('[Rasa Sidepanel] Received message:', message.type);
       if (message.type === 'ELEMENT_PICKED' && message.context) {
-        setPickerActive(false);
-        setPickedElement(message.context);
-        inputRef.current?.focus();
+        console.log('[Rasa Sidepanel] Element picked:', message.context.selector);
+        // Add to array if not already picked (by selector)
+        setPickedElements(prev => {
+          const exists = prev.some(el => el.selector === message.context!.selector);
+          if (exists) return prev;
+          return [...prev, message.context!];
+        });
+        // Picker stays active automatically now - no need to restart
       } else if (message.type === 'ELEMENT_PICKER_CANCELLED') {
+        console.log('[Rasa Sidepanel] Picker cancelled');
         setPickerActive(false);
       }
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, []);
+  }, [tabId]);
 
   // Start the element picker
   const handleStartPicker = useCallback(async () => {
@@ -70,9 +77,36 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
     }
   }, [tabId]);
 
-  // Clear picked element
-  const handleClearPicked = useCallback(() => {
-    setPickedElement(null);
+  // Done picking - close picker mode
+  const handleDonePicking = useCallback(async () => {
+    setPickerActive(false);
+    try {
+      await cancelElementPicker(tabId);
+    } catch (error) {
+      console.error('Failed to cancel picker:', error);
+    }
+    inputRef.current?.focus();
+  }, [tabId]);
+
+  // Cancel picking - close picker and clear selections
+  const handleCancelPicking = useCallback(async () => {
+    setPickerActive(false);
+    setPickedElements([]);
+    try {
+      await cancelElementPicker(tabId);
+    } catch (error) {
+      console.error('Failed to cancel picker:', error);
+    }
+  }, [tabId]);
+
+  // Remove a specific picked element
+  const handleRemoveElement = useCallback((selector: string) => {
+    setPickedElements(prev => prev.filter(el => el.selector !== selector));
+  }, []);
+
+  // Clear all picked elements
+  const handleClearAll = useCallback(() => {
+    setPickedElements([]);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,10 +119,11 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
     let fullPrompt = trimmedInput;
     let displayContent = trimmedInput;
 
-    if (pickedElement) {
-      const elementContext = formatPickedElementContext(pickedElement);
-      fullPrompt = `[User selected an element on the page]\n\n${elementContext}\n\nUser request: ${trimmedInput}`;
-      displayContent = `[Selected: ${pickedElement.selector}]\n${trimmedInput}`;
+    if (pickedElements.length > 0) {
+      const elementContexts = pickedElements.map(el => formatPickedElementContext(el)).join('\n\n---\n\n');
+      const selectorList = pickedElements.map(el => el.selector).join(', ');
+      fullPrompt = `[User selected ${pickedElements.length} element(s) on the page]\n\n${elementContexts}\n\nUser request: ${trimmedInput}`;
+      displayContent = `[Selected: ${selectorList}]\n${trimmedInput}`;
     }
 
     const userMessage: ChatMessage = {
@@ -101,7 +136,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput('');
-    setPickedElement(null);  // Clear picked element after submit
+    setPickedElements([]);  // Clear picked elements after submit
     setLoading(true);
 
     try {
@@ -192,39 +227,66 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
 
       {/* Input Area */}
       <div className="chat-input-area">
-        {/* Picked Element Preview */}
-        {pickedElement && (
-          <div className="picked-element-preview">
-            <div className="picked-element-preview__header">
-              <span className="picked-element-preview__icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                  <path d="M3.75 2a.75.75 0 0 0-.75.75v10.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75V6.636a.75.75 0 0 0-.22-.53L9.22 2.47a.75.75 0 0 0-.53-.22H3.75Z" />
-                </svg>
-              </span>
-              <span className="picked-element-preview__selector">{pickedElement.selector}</span>
+        {/* Picked Elements List */}
+        {pickedElements.length > 0 && (
+          <div className="picked-elements-list">
+            <div className="picked-elements-header">
+              <span className="text-caption">{pickedElements.length} element{pickedElements.length > 1 ? 's' : ''} selected</span>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="picked-elements-clear-all"
+              >
+                Clear all
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleClearPicked}
-              className="picked-element-preview__clear"
-              aria-label="Clear selection"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
-              </svg>
-            </button>
+            <div className="picked-elements-chips">
+              {pickedElements.map((el) => (
+                <div key={el.selector} className="picked-element-chip">
+                  <span className="picked-element-chip__selector">{el.selector}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveElement(el.selector)}
+                    className="picked-element-chip__remove"
+                    aria-label={`Remove ${el.selector}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                      <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Picker Active State */}
         {pickerActive && (
           <div className="picker-active-banner">
-            <div className="thinking-indicator">
-              <span className="thinking-dot"></span>
-              <span className="thinking-dot"></span>
-              <span className="thinking-dot"></span>
+            <div className="picker-active-banner__content">
+              <div className="thinking-indicator">
+                <span className="thinking-dot"></span>
+                <span className="thinking-dot"></span>
+                <span className="thinking-dot"></span>
+              </div>
+              <span>Click elements on the page to select them</span>
             </div>
-            <span>Click an element on the page...</span>
+            <div className="picker-active-banner__actions">
+              <button
+                type="button"
+                onClick={handleDonePicking}
+                className="picker-done-btn"
+              >
+                Done
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelPicking}
+                className="picker-cancel-btn"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -249,7 +311,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={pickedElement ? "What do you want to change?" : "Describe the changes you want..."}
+              placeholder={pickedElements.length > 0 ? "What do you want to change?" : "Describe the changes you want..."}
               className="input-chat flex-1 font-body"
               rows={1}
               disabled={loading || pickerActive}

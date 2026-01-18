@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateStyles, startElementPicker, formatPickedElementContext } from '../lib/messaging';
+import { generateStyles, startElementPicker, cancelElementPicker, formatPickedElementContext } from '../lib/messaging';
 import { getChatHistory, saveChatHistory } from '../lib/storage';
 import MessageBubble from './MessageBubble';
 import type { ChatMessage, PickedElementContext } from '../types';
@@ -60,6 +60,20 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [tabId]);
+
+  // Listen for ESC in sidepanel to close picker on page
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        cancelElementPicker(tabId).catch(() => {
+          // Ignore errors - picker might not be active
+        });
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [tabId]);
 
   // Start the element picker

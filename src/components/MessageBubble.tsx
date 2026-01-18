@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { ChatMessage, StyleOperation } from '../types';
 
 interface MessageBubbleProps {
@@ -35,9 +36,15 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={isUser ? 'flex justify-end' : ''}>
       <div className={bubbleClass}>
-        <p className="text-body whitespace-pre-wrap leading-relaxed">
-          {message.content}
-        </p>
+        {isUser ? (
+          <p className="text-body whitespace-pre-wrap leading-relaxed">
+            {message.content}
+          </p>
+        ) : (
+          <div className="markdown-content text-body leading-relaxed prose prose-sm prose-invert prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-code:text-olive-light prose-code:bg-stone prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-stone prose-pre:text-snow max-w-none">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
 
         {/* Operations Preview Expander */}
         {hasOperations && (

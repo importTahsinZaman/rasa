@@ -134,7 +134,8 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
           role: 'assistant',
           content: response.data.explanation,
           timestamp: Date.now(),
-          operations: response.data.operations
+          operations: response.data.operations,
+          thinkingTokens: response.data.thinkingTokens
         };
         setMessages(prev => [...prev, assistantMessage]);
         onStylesApplied();

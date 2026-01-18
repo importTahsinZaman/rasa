@@ -74,13 +74,20 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        {/* Timestamp */}
-        <p className="text-2xs text-ghost mt-2 tabular-nums">
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </p>
+        {/* Thinking Tokens & Timestamp */}
+        <div className="flex items-center gap-2 mt-2">
+          {message.thinkingTokens && (
+            <span className="text-2xs text-ghost bg-surface-secondary px-1.5 py-0.5 rounded tabular-nums">
+              {message.thinkingTokens.toLocaleString()} thinking tokens
+            </span>
+          )}
+          <p className="text-2xs text-ghost tabular-nums">
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
+        </div>
       </div>
     </div>
   );

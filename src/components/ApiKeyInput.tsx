@@ -20,8 +20,8 @@ export default function ApiKeyInput({ onApiKeySet }: ApiKeyInputProps) {
       return;
     }
 
-    if (!trimmedKey.startsWith('sk-ant-')) {
-      setError('Invalid API key format. Claude API keys start with "sk-ant-"');
+    if (!trimmedKey.startsWith('AIza')) {
+      setError('Invalid API key format. Google AI API keys start with "AIza"');
       return;
     }
 
@@ -74,14 +74,14 @@ export default function ApiKeyInput({ onApiKeySet }: ApiKeyInputProps) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="animate-fadeInUp onboarding__form stagger-3">
           <label className="onboarding__label">
-            Claude API Key
+            Google AI API Key
           </label>
 
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-ant-api03-..."
+            placeholder="AIza..."
             className="mb-3 input"
             disabled={loading}
             autoFocus
@@ -114,18 +114,18 @@ export default function ApiKeyInput({ onApiKeySet }: ApiKeyInputProps) {
         </form>
 
         <p className="animate-fadeInUp onboarding__hint stagger-4">
-          Your API key is stored locally and never sent anywhere except Anthropic's API.
+          Your API key is stored locally and never sent anywhere except Google's API.
         </p>
       </div>
 
       <div className="animate-fadeInUp onboarding__footer stagger-5">
         <a
-          href="https://console.anthropic.com/settings/keys"
+          href="https://aistudio.google.com/app/apikey"
           target="_blank"
           rel="noopener noreferrer"
           className="onboarding__link"
         >
-          Get an API key from Anthropic
+          Get an API key from Google AI Studio
         </a>
       </div>
     </div>

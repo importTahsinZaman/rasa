@@ -346,6 +346,12 @@ function extractElementContext(element: Element): PickedElementContext {
     position: computed.position,
     border: computed.border,
     borderRadius: computed.borderRadius,
+    // Text properties (for text replacement tasks)
+    lineHeight: computed.lineHeight,
+    letterSpacing: computed.letterSpacing,
+    textTransform: computed.textTransform,
+    textDecoration: computed.textDecoration,
+    textAlign: computed.textAlign,
   };
 
   return {

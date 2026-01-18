@@ -1,4 +1,4 @@
-import type { PageContext, AIResponse, ChatMessage, StyleOperation, ToolDefinition, RuleSummary, StyleRule } from '../types';
+import type { PageContext, AIResponse, ChatMessage, StyleOperation } from '../types';
 import {
   getSiteStyles,
   getRuleSummaries,
@@ -9,109 +9,110 @@ import {
   selectorToId
 } from './storage';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
 const MAX_TOOL_ITERATIONS = 10;
 
-// Tool definitions for Claude
-const TOOLS: ToolDefinition[] = [
-  {
-    name: 'list_rules',
-    description: 'Get a summary of all CSS rules currently saved for this site. Returns id (which is the normalized selector), description, and who created/modified each rule. Use this first to understand what styles exist.',
-    input_schema: {
-      type: 'object',
-      properties: {},
-      required: []
-    }
-  },
-  {
-    name: 'read_rules',
-    description: 'Get the full CSS content for specific rules. Use this when you need to see the actual CSS to modify it.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        selectors: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Array of selectors to read (e.g., ["header", ".nav-link"])'
-        }
-      },
-      required: ['selectors']
-    }
-  },
-  {
-    name: 'add_rule',
-    description: 'Add a new CSS rule. If a rule for this selector already exists, it will be updated instead. The css should be a complete CSS block including the selector and braces.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        selector: {
-          type: 'string',
-          description: 'The CSS selector (e.g., "header", ".nav-link", "#main-content"). This becomes the rule ID.'
+// Tool definitions for Gemini (functionDeclarations format)
+const TOOLS = [{
+  functionDeclarations: [
+    {
+      name: 'list_rules',
+      description: 'Get a summary of all CSS rules currently saved for this site. Returns id (which is the normalized selector), description, and who created/modified each rule. Use this first to understand what styles exist.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    },
+    {
+      name: 'read_rules',
+      description: 'Get the full CSS content for specific rules. Use this when you need to see the actual CSS to modify it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          selectors: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of selectors to read (e.g., ["header", ".nav-link"])'
+          }
         },
-        css: {
-          type: 'string',
-          description: 'Complete CSS block including selector and braces (e.g., "header { background: blue; }")'
+        required: ['selectors']
+      }
+    },
+    {
+      name: 'add_rule',
+      description: 'Add a new CSS rule. If a rule for this selector already exists, it will be updated instead. The css should be a complete CSS block including the selector and braces.',
+      parameters: {
+        type: 'object',
+        properties: {
+          selector: {
+            type: 'string',
+            description: 'The CSS selector (e.g., "header", ".nav-link", "#main-content"). This becomes the rule ID.'
+          },
+          css: {
+            type: 'string',
+            description: 'Complete CSS block including selector and braces (e.g., "header { background: blue; }")'
+          },
+          description: {
+            type: 'string',
+            description: 'Brief description of what this rule does'
+          }
         },
-        description: {
-          type: 'string',
-          description: 'Brief description of what this rule does'
-        }
-      },
-      required: ['selector', 'css']
-    }
-  },
-  {
-    name: 'edit_rule',
-    description: 'Modify an existing CSS rule by its selector. Use list_rules first to see existing selectors.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        selector: {
-          type: 'string',
-          description: 'The selector of the rule to edit (e.g., "header", ".nav-link")'
+        required: ['selector', 'css']
+      }
+    },
+    {
+      name: 'edit_rule',
+      description: 'Modify an existing CSS rule by its selector. Use list_rules first to see existing selectors.',
+      parameters: {
+        type: 'object',
+        properties: {
+          selector: {
+            type: 'string',
+            description: 'The selector of the rule to edit (e.g., "header", ".nav-link")'
+          },
+          css: {
+            type: 'string',
+            description: 'The new complete CSS block including selector and braces'
+          },
+          description: {
+            type: 'string',
+            description: 'Updated description (optional)'
+          }
         },
-        css: {
-          type: 'string',
-          description: 'The new complete CSS block including selector and braces'
+        required: ['selector', 'css']
+      }
+    },
+    {
+      name: 'delete_rule',
+      description: 'Delete a CSS rule by its selector. Use this to remove styles that are no longer needed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          selector: {
+            type: 'string',
+            description: 'The selector of the rule to delete (e.g., "header", ".nav-link")'
+          }
         },
-        description: {
-          type: 'string',
-          description: 'Updated description (optional)'
-        }
-      },
-      required: ['selector', 'css']
+        required: ['selector']
+      }
+    },
+    {
+      name: 'finish',
+      description: 'Call this when you have completed the user\'s request. Provide a brief explanation of what was done.',
+      parameters: {
+        type: 'object',
+        properties: {
+          explanation: {
+            type: 'string',
+            description: 'Brief explanation of what changes were made'
+          }
+        },
+        required: ['explanation']
+      }
     }
-  },
-  {
-    name: 'delete_rule',
-    description: 'Delete a CSS rule by its selector. Use this to remove styles that are no longer needed.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        selector: {
-          type: 'string',
-          description: 'The selector of the rule to delete (e.g., "header", ".nav-link")'
-        }
-      },
-      required: ['selector']
-    }
-  },
-  {
-    name: 'finish',
-    description: 'Call this when you have completed the user\'s request. Provide a brief explanation of what was done.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        explanation: {
-          type: 'string',
-          description: 'Brief explanation of what changes were made'
-        }
-      },
-      required: ['explanation']
-    }
-  }
-];
+  ]
+}];
 
 const SYSTEM_PROMPT = `You are a CSS expert assistant helping users customize webpage appearances. You have tools to read, add, edit, and delete CSS rules for the current site.
 
@@ -129,11 +130,86 @@ RULES FOR WRITING CSS:
 - Consider dark mode compatibility
 - Each rule should be a complete CSS block with selector and braces
 
+CSS PATTERNS FOR COMMON TASKS:
+
+1. TEXT REPLACEMENT (removing/changing partial text):
+   - Set element font-size: 0 to hide original text
+   - Use ::before or ::after with content: "new text"
+   - CRITICAL: Use inherit for font-weight, color, font-family, line-height, letter-spacing
+   - Only hardcode font-size (inherit doesn't work when parent is 0)
+
+   Example:
+   h2 { font-size: 0 !important; }
+   h2::before {
+     content: "new text" !important;
+     font-size: 2rem !important;
+     font-weight: inherit !important;
+     color: inherit !important;
+     font-family: inherit !important;
+     line-height: inherit !important;
+   }
+
+2. HIDING ELEMENTS:
+   - display: none - removes completely
+   - visibility: hidden - preserves space
+   - opacity: 0 - can still interact
+
+3. STYLE PRESERVATION:
+   - When modifying styles, check CURRENT STYLES in context
+   - Match existing values for properties you're not changing
+   - Use inherit when the parent has the style you want
+
+WHEN USER REQUEST IS AMBIGUOUS:
+- "get rid of X" with partial text → replace text keeping element, not hide element
+- "remove X" → hide the element entirely
+- "change X to Y" → modify in place, preserve all other styles
+- "make X bigger/smaller" → only change size, keep everything else
+
+ALWAYS:
+- Check CURRENT STYLES before writing CSS
+- Preserve visual consistency with surrounding elements
+- Use the most specific selector that works
+
 IMPORTANT:
 - If the user asks to "undo" or "revert", delete the relevant rules
 - If the user asks to modify existing styles, edit them rather than adding duplicates
 - If the user's request is unclear, add new rules (they can always ask you to modify later)
 - Always call finish when you're done to provide an explanation to the user`;
+
+// Gemini message format types
+interface GeminiPart {
+  text?: string;
+  functionCall?: {
+    name: string;
+    args: Record<string, unknown>;
+  };
+  functionResponse?: {
+    name: string;
+    response: { result: string };
+  };
+  thoughtSignature?: string;
+}
+
+interface GeminiContent {
+  role: 'user' | 'model';
+  parts: GeminiPart[];
+}
+
+interface GeminiResponse {
+  candidates: Array<{
+    content: {
+      parts: GeminiPart[];
+      role: string;
+    };
+    finishReason: string;
+  }>;
+  usageMetadata?: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+    thoughtsTokenCount?: number;
+  };
+}
 
 /**
  * Build the context message with page info
@@ -159,43 +235,43 @@ Key Page Elements:
 }
 
 /**
- * Build messages for the API call
+ * Build Gemini contents from conversation history
  */
-function buildMessages(
+function buildContents(
   userPrompt: string,
   pageContext: PageContext,
   conversationHistory: ChatMessage[]
-): Array<{ role: 'user' | 'assistant'; content: string }> {
-  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+): GeminiContent[] {
+  const contents: GeminiContent[] = [];
   const contextMessage = buildContextMessage(pageContext);
 
   if (conversationHistory.length > 0) {
     // Include conversation history
-    messages.push({
+    contents.push({
       role: 'user',
-      content: `${contextMessage}\n\nUser Request: ${conversationHistory[0].content}`
+      parts: [{ text: `${contextMessage}\n\nUser Request: ${conversationHistory[0].content}` }]
     });
 
     for (let i = 1; i < conversationHistory.length; i++) {
       const msg = conversationHistory[i];
-      messages.push({
-        role: msg.role,
-        content: msg.content
+      contents.push({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
       });
     }
 
-    messages.push({
+    contents.push({
       role: 'user',
-      content: userPrompt
+      parts: [{ text: userPrompt }]
     });
   } else {
-    messages.push({
+    contents.push({
       role: 'user',
-      content: `${contextMessage}\n\nUser Request: ${userPrompt}`
+      parts: [{ text: `${contextMessage}\n\nUser Request: ${userPrompt}` }]
     });
   }
 
-  return messages;
+  return contents;
 }
 
 /**
@@ -317,7 +393,7 @@ async function executeTool(
 }
 
 /**
- * Generate CSS styles using Claude API with tool use
+ * Generate CSS styles using Gemini API with function calling
  */
 export async function generateStyles(
   apiKey: string,
@@ -326,39 +402,45 @@ export async function generateStyles(
   domain: string,
   conversationHistory: ChatMessage[] = []
 ): Promise<AIResponse> {
-  const messages = buildMessages(userPrompt, pageContext, conversationHistory);
+  const contents = buildContents(userPrompt, pageContext, conversationHistory);
   const operations: StyleOperation[] = [];
 
-  let currentMessages: Array<{ role: 'user' | 'assistant'; content: unknown }> = messages;
+  let currentContents: GeminiContent[] = contents;
   let iteration = 0;
   let finalExplanation = 'Styles updated.';
+  let totalThinkingTokens = 0;
 
   while (iteration < MAX_TOOL_ITERATIONS) {
     iteration++;
 
-    const response = await fetch(ANTHROPIC_API_URL, {
+    const requestBody: Record<string, unknown> = {
+      contents: currentContents,
+      systemInstruction: {
+        parts: [{ text: SYSTEM_PROMPT }]
+      },
+      tools: TOOLS,
+      generationConfig: {
+        thinkingConfig: {
+          thinkingLevel: 'THINKING_LEVEL_MEDIUM'
+        }
+      }
+    };
+
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'x-goog-api-key': apiKey
       },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        tools: TOOLS,
-        messages: currentMessages
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error?.message || `API request failed with status ${response.status}`;
 
-      if (response.status === 401) {
-        throw new Error('Invalid API key. Please check your Claude API key.');
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid API key. Please check your Google AI API key.');
       }
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please try again later.');
@@ -367,28 +449,41 @@ export async function generateStyles(
       throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-    const stopReason = data.stop_reason;
+    const data: GeminiResponse = await response.json();
 
-    // Check if Claude wants to use tools
-    if (stopReason === 'tool_use') {
-      const toolUseBlocks = data.content.filter((block: { type: string }) => block.type === 'tool_use');
-      const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
+    // Extract thinking tokens from usage metadata
+    if (data.usageMetadata?.thoughtsTokenCount) {
+      totalThinkingTokens += data.usageMetadata.thoughtsTokenCount;
+    }
 
+    const candidate = data.candidates?.[0];
+    if (!candidate) {
+      throw new Error('No response candidates from Gemini');
+    }
+
+    const parts = candidate.content.parts;
+
+    // Check for function calls
+    const functionCalls = parts.filter(p => p.functionCall);
+
+    if (functionCalls.length > 0) {
+      const functionResponses: GeminiPart[] = [];
       let finished = false;
 
-      for (const toolUse of toolUseBlocks) {
+      for (const part of functionCalls) {
+        const functionCall = part.functionCall!;
         const { result, finished: isFinished, explanation } = await executeTool(
-          toolUse.name,
-          toolUse.input,
+          functionCall.name,
+          functionCall.args,
           domain,
           operations
         );
 
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: toolUse.id,
-          content: result
+        functionResponses.push({
+          functionResponse: {
+            name: functionCall.name,
+            response: { result }
+          }
         });
 
         if (isFinished && explanation) {
@@ -401,17 +496,23 @@ export async function generateStyles(
         break;
       }
 
-      // Add assistant's response and tool results to messages for next iteration
-      currentMessages = [
-        ...currentMessages,
-        { role: 'assistant', content: data.content },
-        { role: 'user', content: toolResults }
+      // Add model's response and function results to contents for next iteration
+      currentContents = [
+        ...currentContents,
+        {
+          role: 'model',
+          parts: parts
+        },
+        {
+          role: 'user',
+          parts: functionResponses
+        }
       ];
     } else {
-      // Claude finished without calling finish tool - extract explanation from text
-      const textBlock = data.content.find((block: { type: string }) => block.type === 'text');
-      if (textBlock?.text) {
-        finalExplanation = textBlock.text;
+      // No function calls - extract text response
+      const textPart = parts.find(p => p.text);
+      if (textPart?.text) {
+        finalExplanation = textPart.text;
       }
       break;
     }
@@ -419,7 +520,8 @@ export async function generateStyles(
 
   return {
     explanation: finalExplanation,
-    operations
+    operations,
+    thinkingTokens: totalThinkingTokens > 0 ? totalThinkingTokens : undefined
   };
 }
 
@@ -428,23 +530,20 @@ export async function generateStyles(
  */
 export async function validateApiKey(apiKey: string): Promise<boolean> {
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 10,
-        messages: [
-          {
-            role: 'user',
-            content: 'Say "ok"'
-          }
-        ]
+        contents: [{
+          role: 'user',
+          parts: [{ text: 'Say "ok"' }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 10
+        }
       })
     });
 

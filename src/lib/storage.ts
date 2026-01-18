@@ -19,18 +19,20 @@ export function selectorToId(selector: string): string {
     .join(', ');
 }
 
-// API Key management - stored locally for security (not synced)
+// Google API Key management - stored locally for security (not synced)
 export async function saveApiKey(key: string): Promise<void> {
-  await chrome.storage.local.set({ apiKey: key });
+  // Remove old Claude API key if it exists
+  await chrome.storage.local.remove('apiKey');
+  await chrome.storage.local.set({ googleApiKey: key });
 }
 
 export async function getApiKey(): Promise<string | null> {
-  const result = await chrome.storage.local.get('apiKey');
-  return result.apiKey || null;
+  const result = await chrome.storage.local.get('googleApiKey');
+  return result.googleApiKey || null;
 }
 
 export async function removeApiKey(): Promise<void> {
-  await chrome.storage.local.remove('apiKey');
+  await chrome.storage.local.remove('googleApiKey');
 }
 
 // Migrate legacy CSS string format to rule-based format

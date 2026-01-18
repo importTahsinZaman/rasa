@@ -176,6 +176,15 @@ export function formatPickedElementContext(context: PickedElementContext): strin
   lines.push(`  background: ${styles.backgroundColor}`);
   lines.push(`  color: ${styles.color}`);
   lines.push(`  font: ${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`);
+  lines.push(`  line-height: ${styles.lineHeight}`);
+  lines.push(`  letter-spacing: ${styles.letterSpacing}`);
+  lines.push(`  text-align: ${styles.textAlign}`);
+  if (styles.textTransform !== 'none') {
+    lines.push(`  text-transform: ${styles.textTransform}`);
+  }
+  if (styles.textDecoration !== 'none' && !styles.textDecoration.startsWith('none')) {
+    lines.push(`  text-decoration: ${styles.textDecoration}`);
+  }
   lines.push(`  display: ${styles.display}, position: ${styles.position}`);
   if (styles.border !== 'none' && styles.border !== '0px none rgb(0, 0, 0)') {
     lines.push(`  border: ${styles.border}`);

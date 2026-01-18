@@ -1,6 +1,6 @@
 import { injectStyles, removeStyles } from '../lib/css-injector';
 import { extractPageContext } from '../lib/dom-extractor';
-import { getSiteStyles, extractDomain } from '../lib/storage';
+import { getSiteStyles, extractDomain, compileRulesToCSS } from '../lib/storage';
 import type { ExtensionMessage, ExtensionResponse, PageContext } from '../types';
 
 export default defineContentScript({
@@ -34,8 +34,9 @@ export default defineContentScript({
 async function loadSavedStyles(domain: string): Promise<void> {
   try {
     const styles = await getSiteStyles(domain);
-    if (styles && styles.enabled && styles.css) {
-      injectStyles(styles.css);
+    if (styles && styles.enabled && styles.rules.length > 0) {
+      const css = compileRulesToCSS(styles);
+      injectStyles(css);
     }
   } catch (error) {
     console.error('Failed to load saved styles:', error);
@@ -72,8 +73,9 @@ async function handleMessage(
       try {
         if (message.enabled) {
           const styles = await getSiteStyles(domain);
-          if (styles?.css) {
-            injectStyles(styles.css);
+          if (styles && styles.rules.length > 0) {
+            const css = compileRulesToCSS(styles);
+            injectStyles(css);
           }
         } else {
           removeStyles();

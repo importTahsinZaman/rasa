@@ -10,53 +10,52 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isError = message.content.startsWith('Error:');
 
+  const bubbleClass = isUser
+    ? 'message message-user'
+    : isError
+      ? 'message message-error'
+      : 'message message-assistant';
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] rounded-2xl px-4 py-2 ${
-          isUser
-            ? 'bg-purple-600 text-white'
-            : isError
-              ? 'bg-red-900/50 text-red-200'
-              : 'bg-gray-800 text-gray-100'
-        }`}
-      >
-        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+      <div className={bubbleClass}>
+        <p className="text-small whitespace-pre-wrap leading-relaxed">
+          {message.content}
+        </p>
 
-        {/* Show CSS preview for assistant messages with styles */}
+        {/* CSS Preview Expander */}
         {message.styles && (
-          <div className="mt-2 pt-2 border-t border-gray-700">
+          <div className="mt-3 pt-3 border-t border-subtle">
             <button
               onClick={() => setShowCSS(!showCSS)}
-              className="text-xs text-purple-300 hover:text-purple-200 flex items-center gap-1"
+              className="flex items-center gap-2 text-xs transition-fast group"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
+                viewBox="0 0 16 16"
                 fill="currentColor"
-                className={`w-4 h-4 transition-transform ${showCSS ? 'rotate-90' : ''}`}
+                className={`w-3.5 h-3.5 text-interactive transition-transform duration-150 ${showCSS ? 'rotate-90' : ''}`}
               >
-                <path
-                  fillRule="evenodd"
-                  d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
-                  clipRule="evenodd"
-                />
+                <path fillRule="evenodd" d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L8.94 8 6.22 5.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
               </svg>
-              {showCSS ? 'Hide CSS' : 'Show CSS'}
-              <span className="text-gray-500 ml-1">
-                ({message.styles.selectors.length} selector{message.styles.selectors.length !== 1 ? 's' : ''})
+              <span className="text-interactive font-medium group-hover:text-interactive-hover">
+                {showCSS ? 'Hide' : 'View'} CSS
+              </span>
+              <span className="text-ghost">
+                {message.styles.selectors.length} selector{message.styles.selectors.length !== 1 ? 's' : ''}
               </span>
             </button>
 
             {showCSS && (
-              <pre className="mt-2 p-2 bg-gray-900 rounded text-xs overflow-x-auto text-gray-300 font-mono">
+              <pre className="message-code animate-fadeInUp">
                 {message.styles.css}
               </pre>
             )}
           </div>
         )}
 
-        <p className="text-xs text-gray-500 mt-1">
+        {/* Timestamp */}
+        <p className="text-2xs text-ghost mt-2 tabular-nums">
           {new Date(message.timestamp).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit'

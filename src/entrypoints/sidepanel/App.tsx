@@ -13,7 +13,6 @@ export default function App() {
   const [domain, setDomain] = useState<string>('');
   const [siteStyles, setSiteStyles] = useState<SiteStyles | null>(null);
 
-  // Load API key and current tab info on mount
   useEffect(() => {
     async function init() {
       try {
@@ -27,7 +26,6 @@ export default function App() {
         if (tabResponse.success && tabResponse.data) {
           setCurrentTab(tabResponse.data);
 
-          // Get site info
           if (tabResponse.data.id) {
             const siteResponse = await getSiteInfo(tabResponse.data.id);
             if (siteResponse.success && siteResponse.data) {
@@ -46,7 +44,6 @@ export default function App() {
     init();
   }, []);
 
-  // Refresh site info when styles change
   const refreshSiteInfo = async () => {
     if (currentTab?.id) {
       const siteResponse = await getSiteInfo(currentTab.id);
@@ -56,50 +53,52 @@ export default function App() {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-400">Loading...</div>
+      <div className="flex items-center justify-center h-full bg-base">
+        <div className="thinking-indicator">
+          <span className="thinking-dot"></span>
+          <span className="thinking-dot"></span>
+          <span className="thinking-dot"></span>
+        </div>
       </div>
     );
   }
 
-  // Show API key input if not configured
+  // Onboarding - API key required
   if (!apiKey) {
-    return (
-      <ApiKeyInput
-        onApiKeySet={(key) => setApiKey(key)}
-      />
-    );
+    return <ApiKeyInput onApiKeySet={(key) => setApiKey(key)} />;
   }
 
-  // Check if we're on a valid page
+  // Invalid page state
   if (!currentTab?.url || currentTab.url.startsWith('chrome://') || currentTab.url.startsWith('chrome-extension://')) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-        <div className="text-4xl mb-4">🚫</div>
-        <h2 className="text-lg font-semibold mb-2">Cannot customize this page</h2>
-        <p className="text-gray-400 text-sm">
-          Navigate to a website to start customizing its UI.
-        </p>
+      <div className="flex flex-col h-full bg-base">
+        <div className="empty-state flex-1">
+          <div className="empty-state__icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="w-7 h-7"
+            >
+              <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94l-1.72-1.72Z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <h2 className="empty-state__title">Cannot customize this page</h2>
+          <p className="empty-state__description">
+            Navigate to a website to start customizing its interface.
+          </p>
+        </div>
       </div>
     );
   }
 
+  // Main app view
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🎨</span>
-          <span className="font-semibold">Rasa</span>
-        </div>
-        <div className="text-xs text-gray-400 truncate max-w-[150px]" title={domain}>
-          {domain}
-        </div>
-      </header>
-
-      {/* Style Preview */}
+    <div className="flex flex-col h-full bg-base">
+      {/* Style Preview Panel */}
       {siteStyles && (
         <StylePreview
           styles={siteStyles}

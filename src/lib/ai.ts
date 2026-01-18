@@ -421,7 +421,7 @@ export async function generateStyles(
       tools: TOOLS,
       generationConfig: {
         thinkingConfig: {
-          thinkingLevel: 'THINKING_LEVEL_MEDIUM'
+          thinking_level: 'medium'
         }
       }
     };

@@ -102,9 +102,9 @@ export function startPicker(
   instructionsEl.style.cssText = INSTRUCTIONS_STYLES;
   instructionsEl.innerHTML = `
     <span style="color: #9fb87a;">●</span>
-    <span>Click an element to select it</span>
+    <span>Click elements to select them</span>
     <span style="color: #5c5c6a;">|</span>
-    <span style="color: #8b8b9a;">ESC to cancel</span>
+    <span style="color: #8b8b9a;">ESC to finish</span>
   `;
   document.body.appendChild(instructionsEl);
 

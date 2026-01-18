@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateStyles, startElementPicker, cancelElementPicker, formatPickedElementContext } from '../lib/messaging';
+import { generateStyles, startElementPicker, formatPickedElementContext } from '../lib/messaging';
 import { getChatHistory, saveChatHistory } from '../lib/storage';
 import MessageBubble from './MessageBubble';
 import type { ChatMessage, PickedElementContext } from '../types';
@@ -20,7 +20,6 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pickerActive, setPickerActive] = useState(false);
   const [pickedElements, setPickedElements] = useState<PickedElementContext[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -56,9 +55,6 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
           return [...prev, message.context!];
         });
         // Picker stays active automatically now - no need to restart
-      } else if (message.type === 'ELEMENT_PICKER_CANCELLED') {
-        console.log('[Rasa Sidepanel] Picker cancelled');
-        setPickerActive(false);
       }
     };
 
@@ -68,34 +64,10 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
 
   // Start the element picker
   const handleStartPicker = useCallback(async () => {
-    setPickerActive(true);
     try {
       await startElementPicker(tabId);
     } catch (error) {
       console.error('Failed to start picker:', error);
-      setPickerActive(false);
-    }
-  }, [tabId]);
-
-  // Done picking - close picker mode
-  const handleDonePicking = useCallback(async () => {
-    setPickerActive(false);
-    try {
-      await cancelElementPicker(tabId);
-    } catch (error) {
-      console.error('Failed to cancel picker:', error);
-    }
-    inputRef.current?.focus();
-  }, [tabId]);
-
-  // Cancel picking - close picker and clear selections
-  const handleCancelPicking = useCallback(async () => {
-    setPickerActive(false);
-    setPickedElements([]);
-    try {
-      await cancelElementPicker(tabId);
-    } catch (error) {
-      console.error('Failed to cancel picker:', error);
     }
   }, [tabId]);
 
@@ -260,35 +232,6 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
           </div>
         )}
 
-        {/* Picker Active State */}
-        {pickerActive && (
-          <div className="picker-active-banner">
-            <div className="picker-active-banner__content">
-              <div className="thinking-indicator">
-                <span className="thinking-dot"></span>
-                <span className="thinking-dot"></span>
-                <span className="thinking-dot"></span>
-              </div>
-              <span>Click elements on the page to select them</span>
-            </div>
-            <div className="picker-active-banner__actions">
-              <button
-                type="button"
-                onClick={handleDonePicking}
-                className="picker-done-btn"
-              >
-                Done
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelPicking}
-                className="picker-cancel-btn"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit}>
           <div className="chat-input-wrapper">
@@ -296,7 +239,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
             <button
               type="button"
               onClick={handleStartPicker}
-              disabled={loading || pickerActive}
+              disabled={loading}
               className="picker-btn"
               aria-label="Select element on page"
               title="Select an element on the page"
@@ -314,12 +257,12 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
               placeholder={pickedElements.length > 0 ? "What do you want to change?" : "Describe the changes you want..."}
               className="input-chat flex-1 font-body"
               rows={1}
-              disabled={loading || pickerActive}
+              disabled={loading}
               autoFocus
             />
             <button
               type="submit"
-              disabled={loading || !input.trim() || pickerActive}
+              disabled={loading || !input.trim()}
               className="chat-send-btn"
               aria-label="Send message"
             >

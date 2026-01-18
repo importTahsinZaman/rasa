@@ -136,13 +136,18 @@ async function handleMessage(
     }
 
     case 'ELEMENT_PICKED': {
-      // Forward to sidepanel - it will be received via chrome.runtime.onMessage
-      // The sidepanel listens for this message type
+      // Forward to sidepanel by re-broadcasting
+      chrome.runtime.sendMessage(message).catch(() => {
+        // Sidepanel might not be open, ignore error
+      });
       return { success: true, data: message.context };
     }
 
     case 'ELEMENT_PICKER_CANCELLED': {
-      // Forward to sidepanel
+      // Forward to sidepanel by re-broadcasting
+      chrome.runtime.sendMessage(message).catch(() => {
+        // Sidepanel might not be open, ignore error
+      });
       return { success: true };
     }
 

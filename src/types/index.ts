@@ -112,7 +112,10 @@ export type ExtensionMessage =
   | { type: 'TOGGLE_STYLES'; enabled: boolean }
   | { type: 'CLEAR_STYLES' }
   | { type: 'GET_CURRENT_DOMAIN' }
-  | { type: 'STYLES_UPDATED'; css: string; enabled: boolean };
+  | { type: 'STYLES_UPDATED'; css: string; enabled: boolean }
+  | { type: 'START_ELEMENT_PICKER' }
+  | { type: 'CANCEL_ELEMENT_PICKER' }
+  | { type: 'ELEMENT_PICKED'; context: PickedElementContext };
 
 export interface ExtensionResponse<T = unknown> {
   success: boolean;
@@ -125,4 +128,63 @@ export interface StorageSchema {
   apiKey: string | null;
   siteStyles: Record<string, SiteStyles>;
   chatHistory: Record<string, ChatMessage[]>;
+}
+
+// ============================================
+// ELEMENT PICKER TYPES
+// ============================================
+
+// Simplified element info for siblings/children display
+export interface ElementSummary {
+  tag: string;
+  id?: string;
+  classes: string[];
+  text?: string;
+  childCount: number;
+}
+
+// Full context for a picked element
+export interface PickedElementContext {
+  // The generated CSS selector for this element
+  selector: string;
+
+  // Breadcrumb path from body to this element (selectors only)
+  breadcrumb: string[];
+
+  // Full details of the selected element
+  element: {
+    tag: string;
+    id?: string;
+    classes: string[];
+    attributes: Record<string, string>;
+    text?: string;
+  };
+
+  // Direct children (1 level deep, max 10)
+  children: ElementSummary[];
+
+  // Adjacent siblings
+  previousSiblings: ElementSummary[];  // up to 2
+  nextSiblings: ElementSummary[];      // up to 2
+
+  // Computed styles of the element
+  computedStyles: {
+    // Box model
+    width: string;
+    height: string;
+    padding: string;
+    margin: string;
+    // Visual
+    backgroundColor: string;
+    color: string;
+    fontSize: string;
+    fontFamily: string;
+    fontWeight: string;
+    // Layout
+    display: string;
+    position: string;
+    // Borders
+    border: string;
+    borderRadius: string;
+  };
 }

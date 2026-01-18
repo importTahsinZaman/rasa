@@ -1,7 +1,8 @@
 import { injectStyles, removeStyles } from '../lib/css-injector';
 import { extractPageContext } from '../lib/dom-extractor';
 import { getSiteStyles, extractDomain, compileRulesToCSS } from '../lib/storage';
-import type { ExtensionMessage, ExtensionResponse, PageContext } from '../types';
+import { startPicker, stopPicker, isPickerActive } from '../lib/element-picker';
+import type { ExtensionMessage, ExtensionResponse, PageContext, PickedElementContext } from '../types';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -106,6 +107,44 @@ async function handleMessage(
         } else {
           removeStyles();
         }
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: (error as Error).message };
+      }
+    }
+
+    case 'START_ELEMENT_PICKER': {
+      try {
+        if (isPickerActive()) {
+          return { success: true };  // Already active
+        }
+
+        startPicker(
+          // On pick callback
+          (context: PickedElementContext) => {
+            // Send picked element back to sidepanel via background
+            chrome.runtime.sendMessage({
+              type: 'ELEMENT_PICKED',
+              context
+            });
+          },
+          // On cancel callback
+          () => {
+            chrome.runtime.sendMessage({
+              type: 'ELEMENT_PICKER_CANCELLED'
+            });
+          }
+        );
+
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: (error as Error).message };
+      }
+    }
+
+    case 'CANCEL_ELEMENT_PICKER': {
+      try {
+        stopPicker();
         return { success: true };
       } catch (error) {
         return { success: false, error: (error as Error).message };

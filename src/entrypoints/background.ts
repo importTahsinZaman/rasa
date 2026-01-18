@@ -9,7 +9,7 @@ import {
   compileRulesToCSS,
   addRule
 } from '../lib/storage';
-import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage, StyleOperation } from '../types';
+import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage, StyleOperation, PickedElementContext } from '../types';
 
 export default defineBackground(() => {
   // Open side panel when extension icon is clicked
@@ -67,13 +67,36 @@ interface GetSiteInfoMessage {
   tabId: number;
 }
 
+interface StartElementPickerMessage {
+  type: 'START_ELEMENT_PICKER';
+  tabId: number;
+}
+
+interface CancelElementPickerMessage {
+  type: 'CANCEL_ELEMENT_PICKER';
+  tabId: number;
+}
+
+interface ElementPickedMessage {
+  type: 'ELEMENT_PICKED';
+  context: PickedElementContext;
+}
+
+interface ElementPickerCancelledMessage {
+  type: 'ELEMENT_PICKER_CANCELLED';
+}
+
 type BackgroundMessage =
   | GenerateStylesMessage
   | ApplyAndSaveMessage
   | ToggleStylesMessage
   | ClearStylesMessage
   | GetCurrentTabMessage
-  | GetSiteInfoMessage;
+  | GetSiteInfoMessage
+  | StartElementPickerMessage
+  | CancelElementPickerMessage
+  | ElementPickedMessage
+  | ElementPickerCancelledMessage;
 
 async function handleMessage(
   message: BackgroundMessage,
@@ -102,6 +125,25 @@ async function handleMessage(
 
     case 'GET_SITE_INFO': {
       return handleGetSiteInfo(message.tabId);
+    }
+
+    case 'START_ELEMENT_PICKER': {
+      return handleStartElementPicker(message.tabId);
+    }
+
+    case 'CANCEL_ELEMENT_PICKER': {
+      return handleCancelElementPicker(message.tabId);
+    }
+
+    case 'ELEMENT_PICKED': {
+      // Forward to sidepanel - it will be received via chrome.runtime.onMessage
+      // The sidepanel listens for this message type
+      return { success: true, data: message.context };
+    }
+
+    case 'ELEMENT_PICKER_CANCELLED': {
+      // Forward to sidepanel
+      return { success: true };
     }
 
     default:
@@ -305,6 +347,34 @@ async function handleGetSiteInfo(
       success: true,
       data: { domain, styles }
     };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Start the element picker on the page
+ */
+async function handleStartElementPicker(tabId: number): Promise<ExtensionResponse> {
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'START_ELEMENT_PICKER'
+    });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Cancel the element picker on the page
+ */
+async function handleCancelElementPicker(tabId: number): Promise<ExtensionResponse> {
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'CANCEL_ELEMENT_PICKER'
+    });
+    return { success: true };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }

@@ -512,6 +512,8 @@ body::after {
   font-size: var(--text-sm);
   line-height: 1.55;
   animation: messageReveal var(--duration-slow) var(--ease-out) forwards;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 @keyframes messageReveal {
@@ -1167,6 +1169,7 @@ body::after {
 .message-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;

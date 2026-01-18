@@ -17,9 +17,9 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       : 'message message-assistant';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={isUser ? 'flex justify-end' : ''}>
       <div className={bubbleClass}>
-        <p className="text-small whitespace-pre-wrap leading-relaxed">
+        <p className="text-body whitespace-pre-wrap leading-relaxed">
           {message.content}
         </p>
 

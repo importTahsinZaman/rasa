@@ -540,13 +540,15 @@ body::after {
     0 4px 16px rgba(90, 111, 66, 0.25);
 }
 
-/* Assistant message — Elevated surface */
+/* Assistant message — Clean, full-width */
 .message-assistant {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
-  box-shadow: var(--shadow-sm);
+  max-width: 100%;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
 }
 
 /* Error message */
@@ -575,6 +577,10 @@ body::after {
   background: rgba(0, 0, 0, 0.2);
   border-color: rgba(0, 0, 0, 0.15);
   color: rgba(255, 255, 255, 0.9);
+}
+
+.message-assistant .message-code {
+  background: var(--bg-raised);
 }
 
 /* ============================================

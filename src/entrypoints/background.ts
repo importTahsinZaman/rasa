@@ -6,7 +6,8 @@ import {
   toggleSiteStyles,
   clearSiteStyles,
   extractDomain,
-  compileRulesToCSS
+  compileRulesToCSS,
+  addRule
 } from '../lib/storage';
 import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage, StyleOperation } from '../types';
 
@@ -184,34 +185,22 @@ async function handleApplyAndSaveStyles(
     }
 
     const domain = extractDomain(tab.url);
-    const now = Date.now();
 
-    // Get existing styles or create new
-    const existingStyles = await getSiteStyles(domain);
-
-    // Create a single rule from the raw CSS (for manual/direct CSS input)
-    const newRule = {
-      id: 'r_' + Math.random().toString(36).substring(2, 10),
+    // Add as a manual rule (selector-based ID will be "(manual)")
+    await addRule(domain, {
       selector: '(manual)',
       css,
       description: 'Manually applied CSS',
-      createdBy: 'user' as const,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    // Save styles with the new rule appended
-    await saveSiteStyles(domain, {
-      rules: existingStyles ? [...existingStyles.rules, newRule] : [newRule],
-      enabled: true,
-      createdAt: existingStyles?.createdAt || now,
-      updatedAt: now
+      createdBy: 'user'
     });
 
-    // Apply to page
+    // Get compiled CSS and apply to page
+    const styles = await getSiteStyles(domain);
+    const compiledCSS = styles ? compileRulesToCSS(styles) : css;
+
     await chrome.tabs.sendMessage(tabId, {
       type: 'STYLES_UPDATED',
-      css,
+      css: compiledCSS,
       enabled: true
     });
 

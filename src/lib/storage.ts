@@ -1,8 +1,22 @@
 import type { SiteStyles, StyleRule, LegacySiteStyles, ChatMessage, RuleSummary } from '../types';
 
-// Generate unique rule ID
-export function generateRuleId(): string {
-  return 'r_' + Math.random().toString(36).substring(2, 10);
+/**
+ * Convert a CSS selector to a normalized ID.
+ * - Trims whitespace
+ * - Normalizes internal whitespace
+ * - Sorts comma-separated selectors for consistency
+ *
+ * Examples:
+ *   "body *"                          → "body *"
+ *   "#masthead"                       → "#masthead"
+ *   "#purple-menu a, #ceiling-menu a" → "#ceiling-menu a, #purple-menu a"
+ */
+export function selectorToId(selector: string): string {
+  return selector
+    .split(',')
+    .map(s => s.trim().replace(/\s+/g, ' '))
+    .sort()
+    .join(', ');
 }
 
 // API Key management - stored locally for security (not synced)
@@ -24,9 +38,9 @@ function migrateLegacyStyles(legacy: LegacySiteStyles): SiteStyles {
   const rules: StyleRule[] = [];
 
   if (legacy.css && legacy.css.trim()) {
-    // Create a single rule from the legacy CSS
+    // Create a single rule from the legacy CSS with a special migrated ID
     rules.push({
-      id: generateRuleId(),
+      id: '(migrated)',
       selector: '(migrated)',
       css: legacy.css,
       description: 'Migrated from legacy format',
@@ -100,10 +114,32 @@ export async function clearSiteStyles(domain: string): Promise<void> {
 export async function addRule(domain: string, rule: Omit<StyleRule, 'id' | 'createdAt' | 'updatedAt'>): Promise<StyleRule> {
   const styles = await getSiteStyles(domain);
   const now = Date.now();
+  const ruleId = selectorToId(rule.selector);
 
+  // Check if a rule with this selector already exists
+  if (styles) {
+    const existingIndex = styles.rules.findIndex(r => r.id === ruleId);
+
+    if (existingIndex !== -1) {
+      // Update existing rule instead of adding duplicate
+      const existingRule = styles.rules[existingIndex];
+      const updatedRule: StyleRule = {
+        ...existingRule,
+        css: rule.css,
+        description: rule.description,
+        updatedBy: rule.createdBy, // The creator of new rule becomes updater
+        updatedAt: now
+      };
+      styles.rules[existingIndex] = updatedRule;
+      await saveSiteStyles(domain, styles);
+      return updatedRule;
+    }
+  }
+
+  // Create new rule with selector-based ID
   const newRule: StyleRule = {
     ...rule,
-    id: generateRuleId(),
+    id: ruleId,
     createdAt: now,
     updatedAt: now
   };
@@ -172,8 +208,7 @@ export async function getRules(domain: string, ruleIds: string[]): Promise<Style
 
 export function getRuleSummaries(styles: SiteStyles): RuleSummary[] {
   return styles.rules.map(r => ({
-    id: r.id,
-    selector: r.selector,
+    id: r.id,  // ID is the normalized selector
     description: r.description,
     createdBy: r.createdBy,
     updatedBy: r.updatedBy

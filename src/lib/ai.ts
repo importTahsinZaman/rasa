@@ -6,7 +6,7 @@ import {
   editRule,
   deleteRule,
   getRules,
-  generateRuleId
+  selectorToId
 } from './storage';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -17,7 +17,7 @@ const MAX_TOOL_ITERATIONS = 10;
 const TOOLS: ToolDefinition[] = [
   {
     name: 'list_rules',
-    description: 'Get a summary of all CSS rules currently saved for this site. Returns id, selector, description, and who created/modified each rule. Use this first to understand what styles exist.',
+    description: 'Get a summary of all CSS rules currently saved for this site. Returns id (which is the normalized selector), description, and who created/modified each rule. Use this first to understand what styles exist.',
     input_schema: {
       type: 'object',
       properties: {},
@@ -26,28 +26,28 @@ const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'read_rules',
-    description: 'Get the full CSS content for specific rules by their IDs. Use this when you need to see the actual CSS to modify it.',
+    description: 'Get the full CSS content for specific rules. Use this when you need to see the actual CSS to modify it.',
     input_schema: {
       type: 'object',
       properties: {
-        rule_ids: {
+        selectors: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Array of rule IDs to read'
+          description: 'Array of selectors to read (e.g., ["header", ".nav-link"])'
         }
       },
-      required: ['rule_ids']
+      required: ['selectors']
     }
   },
   {
     name: 'add_rule',
-    description: 'Add a new CSS rule. The css should be a complete CSS block including the selector and braces.',
+    description: 'Add a new CSS rule. If a rule for this selector already exists, it will be updated instead. The css should be a complete CSS block including the selector and braces.',
     input_schema: {
       type: 'object',
       properties: {
         selector: {
           type: 'string',
-          description: 'The CSS selector (e.g., "header", ".nav-link", "#main-content")'
+          description: 'The CSS selector (e.g., "header", ".nav-link", "#main-content"). This becomes the rule ID.'
         },
         css: {
           type: 'string',
@@ -63,13 +63,13 @@ const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'edit_rule',
-    description: 'Modify an existing CSS rule by its ID. Use list_rules first to get the IDs.',
+    description: 'Modify an existing CSS rule by its selector. Use list_rules first to see existing selectors.',
     input_schema: {
       type: 'object',
       properties: {
-        rule_id: {
+        selector: {
           type: 'string',
-          description: 'The ID of the rule to edit'
+          description: 'The selector of the rule to edit (e.g., "header", ".nav-link")'
         },
         css: {
           type: 'string',
@@ -80,21 +80,21 @@ const TOOLS: ToolDefinition[] = [
           description: 'Updated description (optional)'
         }
       },
-      required: ['rule_id', 'css']
+      required: ['selector', 'css']
     }
   },
   {
     name: 'delete_rule',
-    description: 'Delete a CSS rule by its ID. Use this to remove styles that are no longer needed.',
+    description: 'Delete a CSS rule by its selector. Use this to remove styles that are no longer needed.',
     input_schema: {
       type: 'object',
       properties: {
-        rule_id: {
+        selector: {
           type: 'string',
-          description: 'The ID of the rule to delete'
+          description: 'The selector of the rule to delete (e.g., "header", ".nav-link")'
         }
       },
-      required: ['rule_id']
+      required: ['selector']
     }
   },
   {
@@ -220,14 +220,15 @@ async function executeTool(
     }
 
     case 'read_rules': {
-      const ruleIds = toolInput.rule_ids as string[];
+      const selectors = toolInput.selectors as string[];
+      // Convert selectors to normalized IDs for lookup
+      const ruleIds = selectors.map(s => selectorToId(s));
       const rules = await getRules(domain, ruleIds);
       if (rules.length === 0) {
-        return { result: 'No rules found with the specified IDs.' };
+        return { result: 'No rules found with the specified selectors.' };
       }
       const ruleData = rules.map(r => ({
         id: r.id,
-        selector: r.selector,
         css: r.css,
         description: r.description
       }));
@@ -248,20 +249,21 @@ async function executeTool(
 
       operations.push({
         op: 'add',
-        selector,
+        selector: newRule.id, // Use normalized ID
         css,
         description
       });
 
       return {
-        result: `Rule added successfully with ID: ${newRule.id}`
+        result: `Rule added/updated for selector: ${newRule.id}`
       };
     }
 
     case 'edit_rule': {
-      const ruleId = toolInput.rule_id as string;
+      const selector = toolInput.selector as string;
       const css = toolInput.css as string;
       const description = toolInput.description as string | undefined;
+      const ruleId = selectorToId(selector);
 
       const updatedRule = await editRule(domain, ruleId, {
         css,
@@ -270,7 +272,7 @@ async function executeTool(
       });
 
       if (!updatedRule) {
-        return { result: `Error: Rule with ID ${ruleId} not found.` };
+        return { result: `Error: No rule found for selector "${selector}".` };
       }
 
       operations.push({
@@ -280,15 +282,16 @@ async function executeTool(
         description
       });
 
-      return { result: `Rule ${ruleId} updated successfully.` };
+      return { result: `Rule "${ruleId}" updated successfully.` };
     }
 
     case 'delete_rule': {
-      const ruleId = toolInput.rule_id as string;
+      const selector = toolInput.selector as string;
+      const ruleId = selectorToId(selector);
       const success = await deleteRule(domain, ruleId);
 
       if (!success) {
-        return { result: `Error: Rule with ID ${ruleId} not found.` };
+        return { result: `Error: No rule found for selector "${selector}".` };
       }
 
       operations.push({
@@ -296,7 +299,7 @@ async function executeTool(
         ruleId
       });
 
-      return { result: `Rule ${ruleId} deleted successfully.` };
+      return { result: `Rule "${ruleId}" deleted successfully.` };
     }
 
     case 'finish': {

@@ -87,10 +87,9 @@ export interface ToolResult {
   content: string;
 }
 
-// Rule summary for list_rules tool
+// Rule summary for list_rules tool (id IS the normalized selector)
 export interface RuleSummary {
-  id: string;
-  selector: string;
+  id: string;  // The normalized selector, e.g., "header", ".nav-link, .nav-item"
   description?: string;
   createdBy: 'ai' | 'user';
   updatedBy?: 'ai' | 'user';

@@ -186,15 +186,29 @@ interface GeminiResponse {
  * Build the context message with page info
  */
 function buildContextMessage(pageContext: PageContext): string {
+  // Separate elements with IDs from others
+  const elementsWithIds = pageContext.elements.filter(el => el.id);
+  const elementsWithoutIds = pageContext.elements.filter(el => !el.id);
+
   let context = `Page URL: ${pageContext.url}
 Page Title: ${pageContext.title}
 
-Key Page Elements:
+ELEMENTS WITH IDs (preferred for CSS targeting):
 `;
 
-  for (const el of pageContext.elements.slice(0, 50)) {
-    let line = `<${el.tag}`;
-    if (el.id) line += ` id="${el.id}"`;
+  for (const el of elementsWithIds.slice(0, 40)) {
+    let line = `  #${el.id} <${el.tag}`;
+    if (el.classes.length > 0) line += ` class="${el.classes.slice(0, 3).join(' ')}"`;
+    if (el.role) line += ` role="${el.role}"`;
+    line += '>';
+    if (el.text) line += ` "${el.text}"`;
+    context += line + '\n';
+  }
+
+  context += '\nOTHER KEY ELEMENTS:\n';
+
+  for (const el of elementsWithoutIds.slice(0, 30)) {
+    let line = `  <${el.tag}`;
     if (el.classes.length > 0) line += ` class="${el.classes.slice(0, 3).join(' ')}"`;
     if (el.role) line += ` role="${el.role}"`;
     line += '>';

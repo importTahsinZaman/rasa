@@ -12,6 +12,9 @@ const PRIORITY_TAGS = new Set([
 // Maximum number of elements to extract
 const MAX_ELEMENTS = 100;
 
+// Reserve slots for elements with IDs (these are most useful for CSS targeting)
+const MAX_ID_ELEMENTS = 50;
+
 // Maximum text length to capture
 const MAX_TEXT_LENGTH = 50;
 
@@ -132,21 +135,43 @@ function scoreElement(element: Element): number {
  */
 export function extractPageContext(): PageContext {
   const allElements = Array.from(document.querySelectorAll('*'));
-
-  // Score and sort elements by importance
-  const scoredElements = allElements
-    .map(el => ({ element: el, score: scoreElement(el) }))
-    .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_ELEMENTS);
-
-  // Extract information from top elements
   const elements: ElementInfo[] = [];
+  const includedElements = new Set<Element>();
 
-  for (const { element } of scoredElements) {
+  // PRIORITY 1: Elements with IDs (most useful for CSS targeting)
+  // These are guaranteed to be included first
+  const elementsWithIds = allElements.filter(el => el.id && isVisible(el));
+
+  // Sort ID elements by importance (semantic elements first, then by DOM order)
+  const scoredIdElements = elementsWithIds
+    .map(el => ({ element: el, score: scoreElement(el) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_ID_ELEMENTS);
+
+  for (const { element } of scoredIdElements) {
     const info = extractElementInfo(element);
     if (info) {
       elements.push(info);
+      includedElements.add(element);
+    }
+  }
+
+  // PRIORITY 2: Fill remaining slots with other important elements
+  const remainingSlots = MAX_ELEMENTS - elements.length;
+
+  if (remainingSlots > 0) {
+    const otherElements = allElements
+      .filter(el => !includedElements.has(el))
+      .map(el => ({ element: el, score: scoreElement(el) }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, remainingSlots);
+
+    for (const { element } of otherElements) {
+      const info = extractElementInfo(element);
+      if (info) {
+        elements.push(info);
+      }
     }
   }
 

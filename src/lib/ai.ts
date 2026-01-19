@@ -390,13 +390,7 @@ export async function generateStyles(
       systemInstruction: {
         parts: [{ text: SYSTEM_PROMPT }]
       },
-      tools: TOOLS,
-      generationConfig: {
-        thinkingConfig: {
-          thinkingLevel: 'low',
-          includeThoughts: true
-        }
-      }
+      tools: TOOLS
     };
 
     console.log('[Rasa AI] Request iteration', iteration, requestBody);

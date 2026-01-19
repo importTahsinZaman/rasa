@@ -13,6 +13,19 @@ export default function App() {
   const [domain, setDomain] = useState<string>('');
   const [siteStyles, setSiteStyles] = useState<SiteStyles | null>(null);
 
+  // Load site info for a tab
+  const loadSiteInfo = async (tab: chrome.tabs.Tab) => {
+    setCurrentTab(tab);
+    if (tab.id) {
+      const siteResponse = await getSiteInfo(tab.id);
+      if (siteResponse.success && siteResponse.data) {
+        setDomain(siteResponse.data.domain);
+        setSiteStyles(siteResponse.data.styles);
+      }
+    }
+  };
+
+  // Initial load
   useEffect(() => {
     async function init() {
       try {
@@ -24,15 +37,7 @@ export default function App() {
         setApiKey(key);
 
         if (tabResponse.success && tabResponse.data) {
-          setCurrentTab(tabResponse.data);
-
-          if (tabResponse.data.id) {
-            const siteResponse = await getSiteInfo(tabResponse.data.id);
-            if (siteResponse.success && siteResponse.data) {
-              setDomain(siteResponse.data.domain);
-              setSiteStyles(siteResponse.data.styles);
-            }
-          }
+          await loadSiteInfo(tabResponse.data);
         }
       } catch (error) {
         console.error('Failed to initialize:', error);
@@ -43,6 +48,30 @@ export default function App() {
 
     init();
   }, []);
+
+  // Listen for tab URL changes and tab switches
+  useEffect(() => {
+    const handleTabUpdated = async (tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
+      // Only react to URL changes on the current tab
+      if (changeInfo.url && currentTab?.id === tabId) {
+        await loadSiteInfo(tab);
+      }
+    };
+
+    const handleTabActivated = async (activeInfo: chrome.tabs.TabActiveInfo) => {
+      // When switching to a different tab, load its info
+      const tab = await chrome.tabs.get(activeInfo.tabId);
+      await loadSiteInfo(tab);
+    };
+
+    chrome.tabs.onUpdated.addListener(handleTabUpdated);
+    chrome.tabs.onActivated.addListener(handleTabActivated);
+
+    return () => {
+      chrome.tabs.onUpdated.removeListener(handleTabUpdated);
+      chrome.tabs.onActivated.removeListener(handleTabActivated);
+    };
+  }, [currentTab?.id]);
 
   const refreshSiteInfo = async () => {
     if (currentTab?.id) {

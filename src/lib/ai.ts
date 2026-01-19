@@ -114,67 +114,37 @@ const TOOLS = [{
   ]
 }];
 
-const SYSTEM_PROMPT = `You are a CSS expert assistant helping users customize webpage appearances. You have tools to read, add, edit, and delete CSS rules for the current site.
+const SYSTEM_PROMPT = `<role>
+CSS expert that customizes webpage appearances using tools to manage CSS rules.
+</role>
 
-WORKFLOW:
-1. First, call list_rules to see what CSS rules already exist
-2. Based on the user's request, decide whether to add new rules, edit existing ones, or delete rules
-3. If you need to see the actual CSS content of existing rules, use read_rules
-4. Make your changes using add_rule, edit_rule, or delete_rule
-5. When done, call finish with an explanation
+<workflow>
+1. Call list_rules to see existing rules
+2. Add, edit, or delete rules based on request
+3. Call finish with brief explanation
+</workflow>
 
-RULES FOR WRITING CSS:
-- Use specific selectors (prefer class/ID over generic tags)
-- Use !important sparingly, only when necessary to override site styles
-- Keep CSS concise and focused on the user's request
-- Consider dark mode compatibility
-- Each rule should be a complete CSS block with selector and braces
+<tool_usage>
+Before each tool call, state what you're doing and why.
+</tool_usage>
 
-CSS PATTERNS FOR COMMON TASKS:
+<css_rules>
+- Use class/ID selectors over generic tags
+- Use !important only to override site styles
+- Check CURRENT STYLES in context before writing CSS
+- Use inherit to preserve typography (font-weight, color, font-family, line-height)
+</css_rules>
 
-1. TEXT REPLACEMENT (removing/changing partial text):
-   - Set element font-size: 0 to hide original text
-   - Use ::before or ::after with content: "new text"
-   - CRITICAL: Use inherit for font-weight, color, font-family, line-height, letter-spacing
-   - Only hardcode font-size (inherit doesn't work when parent is 0)
+<patterns>
+TEXT REPLACEMENT: Set font-size: 0, use ::before/::after with content, inherit all typography except font-size.
 
-   Example:
-   h2 { font-size: 0 !important; }
-   h2::before {
-     content: "new text" !important;
-     font-size: 2rem !important;
-     font-weight: inherit !important;
-     color: inherit !important;
-     font-family: inherit !important;
-     line-height: inherit !important;
-   }
+HIDING: display: none (remove), visibility: hidden (keep space), opacity: 0 (interactive).
 
-2. HIDING ELEMENTS:
-   - display: none - removes completely
-   - visibility: hidden - preserves space
-   - opacity: 0 - can still interact
-
-3. STYLE PRESERVATION:
-   - When modifying styles, check CURRENT STYLES in context
-   - Match existing values for properties you're not changing
-   - Use inherit when the parent has the style you want
-
-WHEN USER REQUEST IS AMBIGUOUS:
-- "get rid of X" with partial text → replace text keeping element, not hide element
-- "remove X" → hide the element entirely
-- "change X to Y" → modify in place, preserve all other styles
-- "make X bigger/smaller" → only change size, keep everything else
-
-ALWAYS:
-- Check CURRENT STYLES before writing CSS
-- Preserve visual consistency with surrounding elements
-- Use the most specific selector that works
-
-IMPORTANT:
-- If the user asks to "undo" or "revert", delete the relevant rules
-- If the user asks to modify existing styles, edit them rather than adding duplicates
-- If the user's request is unclear, add new rules (they can always ask you to modify later)
-- Always call finish when you're done to provide an explanation to the user`;
+AMBIGUOUS REQUESTS:
+- "get rid of [text]" → replace text, keep element
+- "remove [element]" → hide entirely
+- "undo/revert" → delete relevant rules
+</patterns>`;
 
 // Gemini message format types
 interface GeminiPart {
@@ -419,14 +389,10 @@ export async function generateStyles(
       systemInstruction: {
         parts: [{ text: SYSTEM_PROMPT }]
       },
-      tools: TOOLS,
-      generationConfig: {
-        thinkingConfig: {
-          thinkingLevel: 'medium',
-          includeThoughts: true
-        }
-      }
+      tools: TOOLS
     };
+
+    console.log('[Rasa AI] Request iteration', iteration, requestBody);
 
     const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
@@ -439,6 +405,7 @@ export async function generateStyles(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error('[Rasa AI] API Error:', response.status, errorData);
       const errorMessage = errorData.error?.message || `API request failed with status ${response.status}`;
 
       if (response.status === 401 || response.status === 403) {

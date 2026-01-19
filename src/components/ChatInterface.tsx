@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { generateStyles, startElementPicker, cancelElementPicker, formatPickedElementContext, undoOperations } from '../lib/messaging';
 import { getChatHistory, saveChatHistory } from '../lib/storage';
 import MessageBubble from './MessageBubble';
-import type { ChatMessage, PickedElementContext, StyleOperation } from '../types';
+import type { ChatMessage, PickedElementContext } from '../types';
 
 interface ChatInterfaceProps {
   tabId: number;
@@ -95,39 +95,40 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
     setPickedElements([]);
   }, []);
 
-  // Undo a message and all following messages
+  // Undo a message and all following messages by restoring to a snapshot
+  // Also removes the user message that triggered the assistant response
   const handleUndo = useCallback(async (messageIndex: number) => {
-    // Get all messages from this index onwards
-    const messagesToUndo = messages.slice(messageIndex);
+    const messageToUndo = messages[messageIndex];
 
-    // Collect all selectors from 'add' operations in these messages
-    const selectorsToDelete: string[] = [];
-    for (const msg of messagesToUndo) {
-      if (msg.operations) {
-        for (const op of msg.operations) {
-          if (op.op === 'add') {
-            selectorsToDelete.push(op.selector);
-          }
-        }
+    // The snapshotId on this message points to the state BEFORE this message's changes
+    if (!messageToUndo.snapshotId) {
+      console.error('No snapshot available for undo');
+      return;
+    }
+
+    // Collect snapshotIds from this message and all following messages (to clean up)
+    const snapshotIdsToRemove: string[] = [];
+    for (let i = messageIndex; i < messages.length; i++) {
+      if (messages[i].snapshotId) {
+        snapshotIdsToRemove.push(messages[i].snapshotId!);
       }
     }
 
-    // Delete the rules if any
-    if (selectorsToDelete.length > 0) {
-      await undoOperations(tabId, selectorsToDelete);
-    }
+    // Restore to the snapshot
+    await undoOperations(tabId, messageToUndo.snapshotId, snapshotIdsToRemove);
 
-    // Remove messages from index onwards
-    const newMessages = messages.slice(0, messageIndex);
+    // Find the start index - include the user message that triggered this response
+    // The user message should be right before the assistant message
+    const startIndex = messageIndex > 0 && messages[messageIndex - 1].role === 'user'
+      ? messageIndex - 1
+      : messageIndex;
+
+    // Remove messages from startIndex onwards
+    const newMessages = messages.slice(0, startIndex);
     setMessages(newMessages);
 
     // Save the updated history
-    if (newMessages.length > 0) {
-      saveChatHistory(domain, newMessages);
-    } else {
-      // Clear history if no messages left
-      saveChatHistory(domain, []);
-    }
+    saveChatHistory(domain, newMessages);
 
     onStylesApplied();
   }, [messages, tabId, domain, onStylesApplied]);
@@ -162,8 +163,11 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
     setPickedElements([]);  // Clear picked elements after submit
     setLoading(true);
 
+    // Generate a unique snapshot ID for this operation
+    const snapshotId = `snapshot-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
     try {
-      const response = await generateStyles(fullPrompt, tabId, messages);
+      const response = await generateStyles(fullPrompt, tabId, messages, snapshotId);
 
       if (response.success && response.data) {
         const assistantMessage: ChatMessage = {
@@ -172,7 +176,8 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
           content: response.data.explanation,
           timestamp: Date.now(),
           operations: response.data.operations,
-          thinking: response.data.thinking
+          thinking: response.data.thinking,
+          snapshotId  // Store the snapshot ID for undo
         };
         setMessages(prev => [...prev, assistantMessage]);
         onStylesApplied();

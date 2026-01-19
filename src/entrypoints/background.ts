@@ -10,7 +10,53 @@ import {
   addRule,
   deleteRule
 } from '../lib/storage';
-import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage, StyleOperation, PickedElementContext } from '../types';
+import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage, StyleOperation, PickedElementContext, StyleRule } from '../types';
+
+// In-memory snapshot store: domain -> messageId -> rules snapshot
+const snapshotStore = new Map<string, Map<string, StyleRule[]>>();
+const MAX_SNAPSHOTS_PER_DOMAIN = 20;
+
+/**
+ * Save a snapshot of the current rules before an operation
+ */
+function saveSnapshot(domain: string, messageId: string, rules: StyleRule[]): void {
+  if (!snapshotStore.has(domain)) {
+    snapshotStore.set(domain, new Map());
+  }
+  const domainSnapshots = snapshotStore.get(domain)!;
+
+  // Deep clone the rules to avoid reference issues
+  domainSnapshots.set(messageId, JSON.parse(JSON.stringify(rules)));
+
+  // Prune old snapshots if we exceed the limit
+  if (domainSnapshots.size > MAX_SNAPSHOTS_PER_DOMAIN) {
+    const keys = Array.from(domainSnapshots.keys());
+    const toDelete = keys.slice(0, keys.length - MAX_SNAPSHOTS_PER_DOMAIN);
+    for (const key of toDelete) {
+      domainSnapshots.delete(key);
+    }
+  }
+}
+
+/**
+ * Get a snapshot for restoring
+ */
+function getSnapshot(domain: string, messageId: string): StyleRule[] | null {
+  const domainSnapshots = snapshotStore.get(domain);
+  if (!domainSnapshots) return null;
+  return domainSnapshots.get(messageId) || null;
+}
+
+/**
+ * Clear snapshots for a domain from a certain message onwards
+ */
+function clearSnapshotsFrom(domain: string, messageIds: string[]): void {
+  const domainSnapshots = snapshotStore.get(domain);
+  if (!domainSnapshots) return;
+  for (const id of messageIds) {
+    domainSnapshots.delete(id);
+  }
+}
 
 export default defineBackground(() => {
   // Open side panel when extension icon is clicked
@@ -40,6 +86,7 @@ interface GenerateStylesMessage {
   prompt: string;
   tabId: number;
   conversationHistory: ChatMessage[];
+  snapshotId: string; // ID to key the pre-operation snapshot
 }
 
 interface ApplyAndSaveMessage {
@@ -90,7 +137,8 @@ interface ElementPickerCancelledMessage {
 interface UndoOperationsMessage {
   type: 'UNDO_OPERATIONS';
   tabId: number;
-  selectors: string[];
+  snapshotId: string; // ID of the snapshot to restore to
+  snapshotIdsToRemove: string[]; // IDs of snapshots to clear after undo
 }
 
 type BackgroundMessage =
@@ -112,7 +160,7 @@ async function handleMessage(
 ): Promise<ExtensionResponse> {
   switch (message.type) {
     case 'GENERATE_STYLES': {
-      return handleGenerateStyles(message.prompt, message.tabId, message.conversationHistory);
+      return handleGenerateStyles(message.prompt, message.tabId, message.conversationHistory, message.snapshotId);
     }
 
     case 'APPLY_AND_SAVE_STYLES': {
@@ -160,7 +208,7 @@ async function handleMessage(
     }
 
     case 'UNDO_OPERATIONS': {
-      return handleUndoOperations(message.tabId, message.selectors);
+      return handleUndoOperations(message.tabId, message.snapshotId, message.snapshotIdsToRemove);
     }
 
     default:
@@ -174,7 +222,8 @@ async function handleMessage(
 async function handleGenerateStyles(
   prompt: string,
   tabId: number,
-  conversationHistory: ChatMessage[] = []
+  conversationHistory: ChatMessage[] = [],
+  snapshotId: string
 ): Promise<ExtensionResponse<AIResponse>> {
   try {
     // Get API key
@@ -194,6 +243,11 @@ async function handleGenerateStyles(
 
     const pageContext = contextResponse.data;
     const domain = extractDomain(pageContext.url);
+
+    // Save snapshot of current rules BEFORE AI makes changes
+    const currentStyles = await getSiteStyles(domain);
+    const currentRules = currentStyles?.rules || [];
+    saveSnapshot(domain, snapshotId, currentRules);
 
     // Generate styles with AI (tool-based approach)
     // AI will read/write rules directly via tools
@@ -398,9 +452,13 @@ async function handleCancelElementPicker(tabId: number): Promise<ExtensionRespon
 }
 
 /**
- * Undo operations by deleting rules that were added
+ * Undo operations by restoring from a snapshot
  */
-async function handleUndoOperations(tabId: number, selectors: string[]): Promise<ExtensionResponse> {
+async function handleUndoOperations(
+  tabId: number,
+  snapshotId: string,
+  snapshotIdsToRemove: string[]
+): Promise<ExtensionResponse> {
   try {
     const tab = await chrome.tabs.get(tabId);
     if (!tab.url) {
@@ -409,26 +467,41 @@ async function handleUndoOperations(tabId: number, selectors: string[]): Promise
 
     const domain = extractDomain(tab.url);
 
-    // Delete each rule by its selector (which is the rule ID)
-    for (const selector of selectors) {
-      await deleteRule(domain, selector);
+    // Get the snapshot to restore to
+    const snapshot = getSnapshot(domain, snapshotId);
+    if (snapshot === null) {
+      return { success: false, error: 'Snapshot not found - undo unavailable' };
     }
 
-    // Get updated styles and apply to page
-    const styles = await getSiteStyles(domain);
-    if (styles) {
-      const compiledCSS = compileRulesToCSS(styles);
+    // Get current styles to preserve enabled state and metadata
+    const currentStyles = await getSiteStyles(domain);
+    const enabled = currentStyles?.enabled ?? true;
+
+    // Restore the rules from snapshot
+    if (snapshot.length > 0) {
+      await saveSiteStyles(domain, {
+        rules: snapshot,
+        enabled,
+        createdAt: currentStyles?.createdAt || Date.now(),
+        updatedAt: Date.now()
+      });
+
+      const compiledCSS = compileRulesToCSS({ domain, rules: snapshot, enabled, createdAt: 0, updatedAt: 0 });
       await chrome.tabs.sendMessage(tabId, {
         type: 'STYLES_UPDATED',
         css: compiledCSS,
-        enabled: styles.enabled
+        enabled
       });
     } else {
-      // No styles left, clear the page
+      // Snapshot was empty, clear all styles
+      await clearSiteStyles(domain);
       await chrome.tabs.sendMessage(tabId, {
         type: 'CLEAR_STYLES'
       });
     }
+
+    // Clean up snapshots for undone messages
+    clearSnapshotsFrom(domain, snapshotIdsToRemove);
 
     return { success: true };
   } catch (error) {

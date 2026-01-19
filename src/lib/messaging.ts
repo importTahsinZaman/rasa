@@ -13,13 +13,15 @@ async function sendToBackground<T>(message: object): Promise<ExtensionResponse<T
 export async function generateStyles(
   prompt: string,
   tabId: number,
-  conversationHistory: ChatMessage[] = []
+  conversationHistory: ChatMessage[] = [],
+  snapshotId: string
 ): Promise<ExtensionResponse<AIResponse>> {
   return sendToBackground({
     type: 'GENERATE_STYLES',
     prompt,
     tabId,
-    conversationHistory
+    conversationHistory,
+    snapshotId
   });
 }
 
@@ -103,16 +105,18 @@ export async function cancelElementPicker(tabId: number): Promise<ExtensionRespo
 }
 
 /**
- * Undo operations by deleting rules that were added
+ * Undo operations by restoring to a snapshot
  */
 export async function undoOperations(
   tabId: number,
-  selectors: string[]
+  snapshotId: string,
+  snapshotIdsToRemove: string[]
 ): Promise<ExtensionResponse> {
   return sendToBackground({
     type: 'UNDO_OPERATIONS',
     tabId,
-    selectors
+    snapshotId,
+    snapshotIdsToRemove
   });
 }
 

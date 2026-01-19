@@ -104,6 +104,7 @@ export interface ChatMessage {
   timestamp: number;
   operations?: StyleOperation[];  // Operations performed (for assistant messages)
   thinking?: string;  // Gemini thinking text (for assistant messages)
+  snapshotId?: string;  // ID of the pre-operation snapshot (for assistant messages, used for undo)
 }
 
 // Message types for extension communication

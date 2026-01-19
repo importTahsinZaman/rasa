@@ -6,66 +6,63 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Base tones
-        void: '#08080a',
-        night: '#0f0f12',
-        slate: '#18181c',
-        stone: '#232328',
-        ash: '#2e2e35',
-        dust: '#3d3d47',
-        mist: '#5c5c6a',
-        cloud: '#8b8b9a',
-        pearl: '#c4c4ce',
-        snow: '#f0f0f4',
+        // Dark scale
+        black: '#0A0A0A',
+        void: '#0F0F0F',
+        night: '#1B1B1B',
+        charcoal: '#242424',
+        graphite: '#2E2E2E',
+        slate: '#3A3A3A',
+        steel: '#4A4A4A',
+        zinc: '#6A6A6A',
+        silver: '#9A9A9A',
+        cloud: '#CCCCCC',
+        snow: '#EEEEEE',
+        white: '#FFFFFF',
 
-        // Primary — Living Olive
-        olive: {
-          deep: '#2a3320',
-          dark: '#3d4a2e',
-          DEFAULT: '#5a6f42',
-          bright: '#7a9458',
-          light: '#9fb87a',
-          pale: '#c8daa8',
-          wash: '#e8f0d8',
-        },
-
-        // Accent — Warm Amber
-        amber: {
-          deep: '#8b5a00',
-          DEFAULT: '#c9850f',
-          light: '#e8b84a',
-          pale: '#ffedc4',
+        // Accent — Crimson Red
+        red: {
+          dark: '#8B0620',
+          deep: '#B8082A',
+          DEFAULT: '#FD0A34',
+          bright: '#FF3D5C',
+          light: '#FF6B82',
+          pale: '#FF9EAB',
+          wash: 'rgba(253, 10, 52, 0.12)',
+          subtle: 'rgba(253, 10, 52, 0.06)',
         },
 
         // Semantic States
-        success: '#4ade80',
-        warning: '#fbbf24',
-        error: '#f87171',
-        info: '#60a5fa',
+        success: '#22C55E',
+        warning: '#EAB308',
+        error: '#EF4444',
+        info: '#3B82F6',
 
         // Semantic backgrounds
-        base: '#0f0f12',
-        raised: '#18181c',
-        elevated: '#232328',
-        floating: '#2e2e35',
+        base: '#1B1B1B',
+        raised: '#242424',
+        elevated: '#2E2E2E',
+        floating: '#3A3A3A',
 
         // Semantic borders
-        subtle: 'rgba(255, 255, 255, 0.06)',
-        default: 'rgba(255, 255, 255, 0.09)',
-        strong: 'rgba(255, 255, 255, 0.14)',
+        subtle: 'rgba(255, 255, 255, 0.08)',
+        default: 'rgba(255, 255, 255, 0.12)',
+        strong: 'rgba(255, 255, 255, 0.18)',
 
         // Interactive
         interactive: {
-          DEFAULT: '#7a9458',
-          hover: '#9fb87a',
-          muted: 'rgba(122, 148, 88, 0.12)',
-          wash: 'rgba(122, 148, 88, 0.06)',
+          DEFAULT: '#FD0A34',
+          hover: '#FF3D5C',
+          muted: 'rgba(253, 10, 52, 0.12)',
         },
+
+        // Legacy
+        ghost: '#4A4A4A',
       },
 
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
-        body: ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['Instrument Serif', 'Georgia', 'serif'],
+        body: ['Geist', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'SF Mono', 'monospace'],
       },
 
@@ -85,9 +82,9 @@ export default {
         'sm': '4px',
         'DEFAULT': '6px',
         'md': '6px',
-        'lg': '10px',
-        'xl': '14px',
-        '2xl': '18px',
+        'lg': '8px',
+        'xl': '12px',
+        '2xl': '16px',
         'full': '9999px',
       },
 
@@ -113,57 +110,48 @@ export default {
         'ease-out': 'cubic-bezier(0.16, 1, 0.3, 1)',
         'ease-in-out': 'cubic-bezier(0.65, 0, 0.35, 1)',
         'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-        'bounce': 'cubic-bezier(0.68, -0.6, 0.32, 1.6)',
       },
 
       transitionDuration: {
         'instant': '50ms',
-        'fast': '120ms',
-        'normal': '200ms',
-        'slow': '350ms',
-        'slower': '500ms',
+        'fast': '100ms',
+        'normal': '150ms',
+        'slow': '250ms',
+        'slower': '400ms',
       },
 
       boxShadow: {
-        'xs': '0 1px 2px rgba(0, 0, 0, 0.4)',
-        'sm': '0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
-        'md': '0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3)',
-        'lg': '0 8px 24px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(0, 0, 0, 0.35)',
-        'xl': '0 16px 48px rgba(0, 0, 0, 0.55), 0 8px 16px rgba(0, 0, 0, 0.4)',
-        'glow-sm': '0 0 12px rgba(122, 148, 88, 0.4), 0 0 4px rgba(122, 148, 88, 0.4)',
-        'glow-md': '0 0 20px rgba(122, 148, 88, 0.4), 0 0 8px rgba(122, 148, 88, 0.4)',
-        'glow-lg': '0 0 32px rgba(122, 148, 88, 0.4), 0 0 12px rgba(122, 148, 88, 0.4)',
-        'inset': 'inset 0 1px 2px rgba(0, 0, 0, 0.3)',
+        'xs': '0 1px 2px rgba(0, 0, 0, 0.5)',
+        'sm': '0 2px 4px rgba(0, 0, 0, 0.5)',
+        'md': '0 4px 8px rgba(0, 0, 0, 0.5)',
+        'lg': '0 8px 16px rgba(0, 0, 0, 0.5)',
+        'xl': '0 16px 32px rgba(0, 0, 0, 0.5)',
+        'inset': 'inset 0 1px 2px rgba(0, 0, 0, 0.4)',
       },
 
       animation: {
-        'fadeInUp': 'fadeInUp 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
-        'scaleIn': 'scaleIn 200ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-        'breathe': 'breathe 1.6s ease-in-out infinite',
+        'fadeInUp': 'fadeInUp 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'scaleIn': 'scaleIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'pulse': 'pulse 1.4s ease-in-out infinite',
         'shimmer': 'shimmer 1.5s ease-in-out infinite',
-        'float': 'logoFloat 4s ease-in-out infinite',
       },
 
       keyframes: {
         fadeInUp: {
-          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         scaleIn: {
-          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '0%': { opacity: '0', transform: 'scale(0.96)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
-        breathe: {
-          '0%, 100%': { transform: 'scale(0.85)', opacity: '0.4' },
-          '50%': { transform: 'scale(1.15)', opacity: '1' },
+        pulse: {
+          '0%, 100%': { opacity: '0.3', transform: 'scale(0.85)' },
+          '50%': { opacity: '1', transform: 'scale(1)' },
         },
         shimmer: {
           '0%': { backgroundPosition: '200% 0' },
           '100%': { backgroundPosition: '-200% 0' },
-        },
-        logoFloat: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-4px)' },
         },
       },
     },

@@ -4,7 +4,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   srcDir: 'src',
   manifest: {
-    name: 'Rasa - AI UI Customizer',
+    name: 'Rasa',
     description: 'Customize any website\'s UI through natural language commands powered by Claude AI',
     version: '1.0.0',
     icons: {

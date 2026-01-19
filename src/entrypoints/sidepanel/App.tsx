@@ -127,6 +127,13 @@ export default function App() {
   // Main app view
   return (
     <div className="flex flex-col h-full bg-base">
+      {/* Header with URL */}
+      {domain && (
+        <header className="header">
+          <p className="header__url">{domain}</p>
+        </header>
+      )}
+
       {/* Style Preview Panel */}
       {siteStyles && (
         <StylePreview

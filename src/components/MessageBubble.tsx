@@ -50,7 +50,7 @@ export default function MessageBubble({ message, onUndo, showUndo }: MessageBubb
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 16 16"
                 fill="currentColor"
-                className={`w-3.5 h-3.5 text-amber transition-transform duration-150 ${showThinking ? 'rotate-90' : ''}`}
+                className={`w-3.5 h-3.5 text-red transition-transform duration-150 ${showThinking ? 'rotate-90' : ''}`}
               >
                 <path fillRule="evenodd" d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L8.94 8 6.22 5.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
               </svg>
@@ -58,17 +58,17 @@ export default function MessageBubble({ message, onUndo, showUndo }: MessageBubb
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 16 16"
                 fill="currentColor"
-                className="w-3.5 h-3.5 text-amber"
+                className="w-3.5 h-3.5 text-red"
               >
                 <path d="M8 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 1ZM10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM12.95 4.11a.75.75 0 1 0-1.06-1.06l-1.062 1.06a.75.75 0 0 0 1.061 1.062l1.06-1.061ZM15 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 15 8ZM11.89 12.95a.75.75 0 0 0 1.06-1.06l-1.06-1.062a.75.75 0 0 0-1.062 1.061l1.061 1.06ZM8 12a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 12ZM4.11 11.89a.75.75 0 1 0 1.06 1.06l1.062-1.06a.75.75 0 1 0-1.061-1.062l-1.06 1.061ZM1.75 8A.75.75 0 0 1 2 7.25h1.5a.75.75 0 0 1 0 1.5H2A.75.75 0 0 1 1.75 8ZM4.11 4.11a.75.75 0 1 0 1.06 1.06L6.23 4.11a.75.75 0 0 0-1.06-1.06l-1.06 1.06Z" />
               </svg>
-              <span className="text-amber font-medium group-hover:text-amber-light">
+              <span className="text-red font-medium group-hover:text-red-bright">
                 {showThinking ? 'Hide' : 'Show'} thinking
               </span>
             </button>
 
             {showThinking && (
-              <div className="mt-2 p-3 bg-void/60 border border-subtle rounded-lg text-xs text-cloud leading-relaxed animate-fadeInUp prose prose-sm prose-invert prose-p:my-1.5 prose-headings:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-amber-light prose-code:bg-stone prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none max-w-none">
+              <div className="mt-2 p-3 bg-raised border border-subtle rounded-lg text-xs text-silver leading-relaxed animate-fadeInUp prose prose-sm prose-invert prose-p:my-1.5 prose-headings:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-red-light prose-code:bg-graphite prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none max-w-none">
                 <ReactMarkdown>{message.thinking}</ReactMarkdown>
               </div>
             )}
@@ -81,7 +81,7 @@ export default function MessageBubble({ message, onUndo, showUndo }: MessageBubb
             {message.content}
           </p>
         ) : (
-          <div className="markdown-content text-body leading-relaxed prose prose-sm prose-invert prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-code:text-olive-light prose-code:bg-stone prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-stone prose-pre:text-snow max-w-none">
+          <div className="markdown-content text-body leading-relaxed prose prose-sm prose-invert prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-code:text-red-light prose-code:bg-charcoal prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-charcoal prose-pre:text-silver max-w-none">
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}

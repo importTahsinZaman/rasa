@@ -3,6 +3,102 @@ import type { PageContext, ElementInfo } from '../types';
 // Maximum number of CSS variables to extract
 const MAX_CSS_VARIABLES = 100;
 
+// Maximum characters for HTML/CSS extraction
+const MAX_HTML_LENGTH = 150000;  // ~150KB
+const MAX_CSS_LENGTH = 150000;   // ~150KB
+
+/**
+ * Extract all CSS from stylesheets on the page
+ * Excludes Rasa-injected styles
+ */
+function extractStylesheets(): string {
+  const cssChunks: string[] = [];
+  let totalLength = 0;
+
+  try {
+    for (const sheet of document.styleSheets) {
+      // Skip our injected styles
+      if (sheet.ownerNode instanceof Element) {
+        if (sheet.ownerNode.id === 'rasa-styles' ||
+            sheet.ownerNode.getAttribute('data-rasa') === 'true') {
+          continue;
+        }
+      }
+
+      try {
+        // Try to read cssRules (may fail due to CORS)
+        const rules = sheet.cssRules || sheet.rules;
+        if (rules) {
+          for (const rule of rules) {
+            const ruleText = rule.cssText;
+            if (totalLength + ruleText.length > MAX_CSS_LENGTH) {
+              cssChunks.push('\n/* ... CSS truncated due to size ... */');
+              return cssChunks.join('\n');
+            }
+            cssChunks.push(ruleText);
+            totalLength += ruleText.length;
+          }
+        }
+      } catch {
+        // CORS error - can't read this stylesheet
+        // Try to get the href at least
+        if (sheet.href) {
+          cssChunks.push(`/* External stylesheet (CORS blocked): ${sheet.href} */`);
+        }
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return cssChunks.join('\n');
+}
+
+/**
+ * Extract the page HTML, cleaned up for AI consumption
+ * Removes scripts, Rasa elements, and excessive whitespace
+ */
+function extractHTML(): string {
+  try {
+    // Clone the body to avoid modifying the actual DOM
+    const bodyClone = document.body.cloneNode(true) as HTMLElement;
+
+    // Remove elements we don't want to send
+    const removeSelectors = [
+      'script',
+      'style',
+      'noscript',
+      'iframe[src*="rasa"]',
+      '[data-rasa]',
+      '#rasa-styles',
+      '#rasa-root'
+    ];
+
+    for (const selector of removeSelectors) {
+      bodyClone.querySelectorAll(selector).forEach(el => el.remove());
+    }
+
+    // Get the HTML and clean it up
+    let html = bodyClone.innerHTML;
+
+    // Collapse excessive whitespace
+    html = html.replace(/\s+/g, ' ');
+    // Remove empty class attributes
+    html = html.replace(/\s*class=""\s*/g, ' ');
+    // Trim
+    html = html.trim();
+
+    // Truncate if too long
+    if (html.length > MAX_HTML_LENGTH) {
+      html = html.slice(0, MAX_HTML_LENGTH) + '\n<!-- ... HTML truncated due to size ... -->';
+    }
+
+    return html;
+  } catch {
+    return '<!-- Error extracting HTML -->';
+  }
+}
+
 /**
  * Extract CSS custom properties (variables) from :root/documentElement
  */
@@ -208,7 +304,9 @@ export function extractPageContext(): PageContext {
     url: window.location.href,
     title: document.title,
     elements,
-    cssVariables: extractCSSVariables()
+    cssVariables: extractCSSVariables(),
+    html: extractHTML(),
+    stylesheets: extractStylesheets()
   };
 }
 

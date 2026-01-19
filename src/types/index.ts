@@ -34,6 +34,8 @@ export interface PageContext {
   title: string;
   elements: ElementInfo[];
   cssVariables: Record<string, string>;  // CSS custom properties from :root
+  html: string;        // Full HTML of the page body
+  stylesheets: string; // Combined CSS from all stylesheets
 }
 
 export interface ElementInfo {

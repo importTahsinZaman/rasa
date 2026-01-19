@@ -186,10 +186,6 @@ interface GeminiResponse {
  * Build the context message with page info
  */
 function buildContextMessage(pageContext: PageContext): string {
-  // Separate elements with IDs from others
-  const elementsWithIds = pageContext.elements.filter(el => el.id);
-  const elementsWithoutIds = pageContext.elements.filter(el => !el.id);
-
   let context = `Page URL: ${pageContext.url}
 Page Title: ${pageContext.title}
 
@@ -198,33 +194,25 @@ Page Title: ${pageContext.title}
   // Include CSS variables if present
   const cssVars = Object.entries(pageContext.cssVariables || {});
   if (cssVars.length > 0) {
-    context += `CSS VARIABLES (from :root - override these to change site theme):\n`;
+    context += `=== CSS VARIABLES (from :root - override these to change site theme) ===\n`;
     for (const [name, value] of cssVars) {
-      context += `  ${name}: ${value}\n`;
+      context += `${name}: ${value}\n`;
     }
     context += '\n';
   }
 
-  context += `ELEMENTS WITH IDs (preferred for CSS targeting):\n`;
-
-  for (const el of elementsWithIds.slice(0, 40)) {
-    let line = `  #${el.id} <${el.tag}`;
-    if (el.classes.length > 0) line += ` class="${el.classes.slice(0, 3).join(' ')}"`;
-    if (el.role) line += ` role="${el.role}"`;
-    line += '>';
-    if (el.text) line += ` "${el.text}"`;
-    context += line + '\n';
+  // Include site stylesheets
+  if (pageContext.stylesheets) {
+    context += `=== SITE STYLESHEETS ===\n`;
+    context += pageContext.stylesheets;
+    context += '\n\n';
   }
 
-  context += '\nOTHER KEY ELEMENTS:\n';
-
-  for (const el of elementsWithoutIds.slice(0, 30)) {
-    let line = `  <${el.tag}`;
-    if (el.classes.length > 0) line += ` class="${el.classes.slice(0, 3).join(' ')}"`;
-    if (el.role) line += ` role="${el.role}"`;
-    line += '>';
-    if (el.text) line += ` "${el.text}"`;
-    context += line + '\n';
+  // Include page HTML
+  if (pageContext.html) {
+    context += `=== PAGE HTML ===\n`;
+    context += pageContext.html;
+    context += '\n';
   }
 
   return context;

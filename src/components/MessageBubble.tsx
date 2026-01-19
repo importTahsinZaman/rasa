@@ -38,7 +38,7 @@ export default function MessageBubble({ message, onUndo, showUndo }: MessageBubb
 
   return (
     <div className={isUser ? 'flex justify-end' : ''}>
-      <div className={bubbleClass}>
+      <div className={`${bubbleClass} group`}>
         {/* Thinking Dropdown (for assistant messages with thinking) */}
         {!isUser && message.thinking && (
           <div className="mb-3 pb-3 border-b border-subtle">
@@ -88,7 +88,7 @@ export default function MessageBubble({ message, onUndo, showUndo }: MessageBubb
 
         {/* Operations Preview Expander */}
         {hasOperations && (
-          <div className="mt-3 pt-3 border-t border-subtle">
+          <div className="mt-3">
             <button
               onClick={() => setShowOps(!showOps)}
               className="flex items-center gap-2 text-xs transition-fast group"
@@ -121,15 +121,9 @@ export default function MessageBubble({ message, onUndo, showUndo }: MessageBubb
           </div>
         )}
 
-        {/* Timestamp and Undo */}
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-2xs text-ghost tabular-nums">
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </p>
-          {showUndo && onUndo && !isUser && (
+        {/* Undo button (assistant messages only, visible on hover) */}
+        {showUndo && onUndo && !isUser && (
+          <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
             <button
               onClick={onUndo}
               className="text-2xs text-ghost hover:text-error transition-fast flex items-center gap-1"
@@ -139,8 +133,8 @@ export default function MessageBubble({ message, onUndo, showUndo }: MessageBubb
               </svg>
               Undo
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -378,6 +378,7 @@ export async function generateStyles(
 
   let currentContents: GeminiContent[] = contents;
   let iteration = 0;
+  let retryCount = 0;
   let finalExplanation = 'Styles updated.';
   const thinkingParts: string[] = [];
 
@@ -389,7 +390,13 @@ export async function generateStyles(
       systemInstruction: {
         parts: [{ text: SYSTEM_PROMPT }]
       },
-      tools: TOOLS
+      tools: TOOLS,
+      generationConfig: {
+        thinkingConfig: {
+          thinkingLevel: 'low',
+          includeThoughts: true
+        }
+      }
     };
 
     console.log('[Rasa AI] Request iteration', iteration, requestBody);
@@ -405,7 +412,7 @@ export async function generateStyles(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('[Rasa AI] API Error:', response.status, errorData);
+      console.error('[Rasa AI] API Error:', response.status, JSON.stringify(errorData, null, 2));
       const errorMessage = errorData.error?.message || `API request failed with status ${response.status}`;
 
       if (response.status === 401 || response.status === 403) {
@@ -413,6 +420,14 @@ export async function generateStyles(
       }
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please try again later.');
+      }
+      // Retry once on 500 errors (transient Gemini issues)
+      if (response.status === 500 && retryCount < 2) {
+        retryCount++;
+        console.log('[Rasa AI] Retrying after 500 error (attempt', retryCount, ')...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        iteration--; // Don't count this as an iteration
+        continue;
       }
 
       throw new Error(errorMessage);

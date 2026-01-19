@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { generateStyles, startElementPicker, cancelElementPicker, formatPickedElementContext } from '../lib/messaging';
+import { generateStyles, startElementPicker, cancelElementPicker, formatPickedElementContext, undoOperations } from '../lib/messaging';
 import { getChatHistory, saveChatHistory } from '../lib/storage';
 import MessageBubble from './MessageBubble';
-import type { ChatMessage, PickedElementContext } from '../types';
+import type { ChatMessage, PickedElementContext, StyleOperation } from '../types';
 
 interface ChatInterfaceProps {
   tabId: number;
@@ -94,6 +94,43 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
   const handleClearAll = useCallback(() => {
     setPickedElements([]);
   }, []);
+
+  // Undo a message and all following messages
+  const handleUndo = useCallback(async (messageIndex: number) => {
+    // Get all messages from this index onwards
+    const messagesToUndo = messages.slice(messageIndex);
+
+    // Collect all selectors from 'add' operations in these messages
+    const selectorsToDelete: string[] = [];
+    for (const msg of messagesToUndo) {
+      if (msg.operations) {
+        for (const op of msg.operations) {
+          if (op.op === 'add') {
+            selectorsToDelete.push(op.selector);
+          }
+        }
+      }
+    }
+
+    // Delete the rules if any
+    if (selectorsToDelete.length > 0) {
+      await undoOperations(tabId, selectorsToDelete);
+    }
+
+    // Remove messages from index onwards
+    const newMessages = messages.slice(0, messageIndex);
+    setMessages(newMessages);
+
+    // Save the updated history
+    if (newMessages.length > 0) {
+      saveChatHistory(domain, newMessages);
+    } else {
+      // Clear history if no messages left
+      saveChatHistory(domain, []);
+    }
+
+    onStylesApplied();
+  }, [messages, tabId, domain, onStylesApplied]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,8 +230,13 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
             </div>
           </div>
         ) : (
-          messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+          messages.map((message, index) => (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              onUndo={() => handleUndo(index)}
+              showUndo={message.role === 'assistant' && !loading}
+            />
           ))
         )}
 

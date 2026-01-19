@@ -103,6 +103,20 @@ export async function cancelElementPicker(tabId: number): Promise<ExtensionRespo
 }
 
 /**
+ * Undo operations by deleting rules that were added
+ */
+export async function undoOperations(
+  tabId: number,
+  selectors: string[]
+): Promise<ExtensionResponse> {
+  return sendToBackground({
+    type: 'UNDO_OPERATIONS',
+    tabId,
+    selectors
+  });
+}
+
+/**
  * Format picked element context for display/AI prompt
  */
 export function formatPickedElementContext(context: PickedElementContext): string {

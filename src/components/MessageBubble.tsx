@@ -4,6 +4,8 @@ import type { ChatMessage, StyleOperation } from '../types';
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  onUndo?: () => void;
+  showUndo?: boolean;
 }
 
 function formatOperation(op: StyleOperation): string {
@@ -19,7 +21,7 @@ function formatOperation(op: StyleOperation): string {
   }
 }
 
-export default function MessageBubble({ message }: MessageBubbleProps) {
+export default function MessageBubble({ message, onUndo, showUndo }: MessageBubbleProps) {
   const [showOps, setShowOps] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
   const isUser = message.role === 'user';
@@ -119,13 +121,26 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        {/* Timestamp */}
-        <p className="text-2xs text-ghost mt-2 tabular-nums">
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </p>
+        {/* Timestamp and Undo */}
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-2xs text-ghost tabular-nums">
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
+          {showUndo && onUndo && !isUser && (
+            <button
+              onClick={onUndo}
+              className="text-2xs text-ghost hover:text-error transition-fast flex items-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                <path fillRule="evenodd" d="M2.22 4.22a.75.75 0 0 0 0 1.06l2.5 2.5a.75.75 0 0 0 1.06-1.06L4.56 5.5H8.5a3.5 3.5 0 1 1 0 7h-1a.75.75 0 0 0 0 1.5h1a5 5 0 1 0 0-10H4.56l1.22-1.22a.75.75 0 0 0-1.06-1.06l-2.5 2.5Z" clipRule="evenodd" />
+              </svg>
+              Undo
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

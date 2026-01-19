@@ -7,7 +7,8 @@ import {
   clearSiteStyles,
   extractDomain,
   compileRulesToCSS,
-  addRule
+  addRule,
+  deleteRule
 } from '../lib/storage';
 import type { ExtensionMessage, ExtensionResponse, PageContext, AIResponse, ChatMessage, StyleOperation, PickedElementContext } from '../types';
 
@@ -86,6 +87,12 @@ interface ElementPickerCancelledMessage {
   type: 'ELEMENT_PICKER_CANCELLED';
 }
 
+interface UndoOperationsMessage {
+  type: 'UNDO_OPERATIONS';
+  tabId: number;
+  selectors: string[];
+}
+
 type BackgroundMessage =
   | GenerateStylesMessage
   | ApplyAndSaveMessage
@@ -96,7 +103,8 @@ type BackgroundMessage =
   | StartElementPickerMessage
   | CancelElementPickerMessage
   | ElementPickedMessage
-  | ElementPickerCancelledMessage;
+  | ElementPickerCancelledMessage
+  | UndoOperationsMessage;
 
 async function handleMessage(
   message: BackgroundMessage,
@@ -149,6 +157,10 @@ async function handleMessage(
         // Sidepanel might not be open, ignore error
       });
       return { success: true };
+    }
+
+    case 'UNDO_OPERATIONS': {
+      return handleUndoOperations(message.tabId, message.selectors);
     }
 
     default:
@@ -379,6 +391,45 @@ async function handleCancelElementPicker(tabId: number): Promise<ExtensionRespon
     await chrome.tabs.sendMessage(tabId, {
       type: 'CANCEL_ELEMENT_PICKER'
     });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Undo operations by deleting rules that were added
+ */
+async function handleUndoOperations(tabId: number, selectors: string[]): Promise<ExtensionResponse> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.url) {
+      return { success: false, error: 'Cannot get tab URL' };
+    }
+
+    const domain = extractDomain(tab.url);
+
+    // Delete each rule by its selector (which is the rule ID)
+    for (const selector of selectors) {
+      await deleteRule(domain, selector);
+    }
+
+    // Get updated styles and apply to page
+    const styles = await getSiteStyles(domain);
+    if (styles) {
+      const compiledCSS = compileRulesToCSS(styles);
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'STYLES_UPDATED',
+        css: compiledCSS,
+        enabled: styles.enabled
+      });
+    } else {
+      // No styles left, clear the page
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'CLEAR_STYLES'
+      });
+    }
+
     return { success: true };
   } catch (error) {
     return { success: false, error: (error as Error).message };

@@ -143,8 +143,9 @@ export default function App() {
         />
       )}
 
-      {/* Chat Interface */}
+      {/* Chat Interface - key forces remount when domain changes */}
       <ChatInterface
+        key={domain}
         tabId={currentTab.id!}
         domain={domain}
         onStylesApplied={refreshSiteInfo}

@@ -33,6 +33,7 @@ export interface PageContext {
   url: string;
   title: string;
   elements: ElementInfo[];
+  cssVariables: Record<string, string>;  // CSS custom properties from :root
 }
 
 export interface ElementInfo {

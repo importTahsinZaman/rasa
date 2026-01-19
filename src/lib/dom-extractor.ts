@@ -1,5 +1,34 @@
 import type { PageContext, ElementInfo } from '../types';
 
+// Maximum number of CSS variables to extract
+const MAX_CSS_VARIABLES = 100;
+
+/**
+ * Extract CSS custom properties (variables) from :root/documentElement
+ */
+function extractCSSVariables(): Record<string, string> {
+  const variables: Record<string, string> = {};
+
+  try {
+    const styles = getComputedStyle(document.documentElement);
+    let count = 0;
+
+    for (const prop of styles) {
+      if (prop.startsWith('--') && count < MAX_CSS_VARIABLES) {
+        const value = styles.getPropertyValue(prop).trim();
+        if (value) {
+          variables[prop] = value;
+          count++;
+        }
+      }
+    }
+  } catch {
+    // Ignore extraction errors
+  }
+
+  return variables;
+}
+
 // Important tags to prioritize
 const PRIORITY_TAGS = new Set([
   'header', 'nav', 'main', 'article', 'section', 'aside', 'footer',
@@ -178,7 +207,8 @@ export function extractPageContext(): PageContext {
   return {
     url: window.location.href,
     title: document.title,
-    elements
+    elements,
+    cssVariables: extractCSSVariables()
   };
 }
 

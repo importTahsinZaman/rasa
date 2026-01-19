@@ -193,8 +193,19 @@ function buildContextMessage(pageContext: PageContext): string {
   let context = `Page URL: ${pageContext.url}
 Page Title: ${pageContext.title}
 
-ELEMENTS WITH IDs (preferred for CSS targeting):
 `;
+
+  // Include CSS variables if present
+  const cssVars = Object.entries(pageContext.cssVariables || {});
+  if (cssVars.length > 0) {
+    context += `CSS VARIABLES (from :root - override these to change site theme):\n`;
+    for (const [name, value] of cssVars) {
+      context += `  ${name}: ${value}\n`;
+    }
+    context += '\n';
+  }
+
+  context += `ELEMENTS WITH IDs (preferred for CSS targeting):\n`;
 
   for (const el of elementsWithIds.slice(0, 40)) {
     let line = `  #${el.id} <${el.tag}`;

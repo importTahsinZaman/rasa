@@ -179,6 +179,7 @@ IMPORTANT:
 // Gemini message format types
 interface GeminiPart {
   text?: string;
+  thought?: boolean;  // True if this is thinking content
   functionCall?: {
     name: string;
     args: Record<string, unknown>;
@@ -408,7 +409,7 @@ export async function generateStyles(
   let currentContents: GeminiContent[] = contents;
   let iteration = 0;
   let finalExplanation = 'Styles updated.';
-  let totalThinkingTokens = 0;
+  const thinkingParts: string[] = [];
 
   while (iteration < MAX_TOOL_ITERATIONS) {
     iteration++;
@@ -421,7 +422,8 @@ export async function generateStyles(
       tools: TOOLS,
       generationConfig: {
         thinkingConfig: {
-          thinking_level: 'medium'
+          thinkingLevel: 'medium',
+          includeThoughts: true
         }
       }
     };
@@ -451,17 +453,19 @@ export async function generateStyles(
 
     const data: GeminiResponse = await response.json();
 
-    // Extract thinking tokens from usage metadata
-    if (data.usageMetadata?.thoughtsTokenCount) {
-      totalThinkingTokens += data.usageMetadata.thoughtsTokenCount;
-    }
-
     const candidate = data.candidates?.[0];
     if (!candidate) {
       throw new Error('No response candidates from Gemini');
     }
 
     const parts = candidate.content.parts;
+
+    // Extract thinking text from parts marked as thoughts
+    for (const part of parts) {
+      if (part.thought && part.text) {
+        thinkingParts.push(part.text);
+      }
+    }
 
     // Check for function calls
     const functionCalls = parts.filter(p => p.functionCall);
@@ -521,7 +525,7 @@ export async function generateStyles(
   return {
     explanation: finalExplanation,
     operations,
-    thinkingTokens: totalThinkingTokens > 0 ? totalThinkingTokens : undefined
+    thinking: thinkingParts.length > 0 ? thinkingParts.join('\n\n') : undefined
   };
 }
 

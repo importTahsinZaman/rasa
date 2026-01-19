@@ -21,6 +21,7 @@ function formatOperation(op: StyleOperation): string {
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const [showOps, setShowOps] = useState(false);
+  const [showThinking, setShowThinking] = useState(false);
   const isUser = message.role === 'user';
   const isError = message.content.startsWith('Error:');
 
@@ -36,6 +37,43 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={isUser ? 'flex justify-end' : ''}>
       <div className={bubbleClass}>
+        {/* Thinking Dropdown (for assistant messages with thinking) */}
+        {!isUser && message.thinking && (
+          <div className="mb-3 pb-3 border-b border-subtle">
+            <button
+              onClick={() => setShowThinking(!showThinking)}
+              className="flex items-center gap-2 text-xs transition-fast group"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className={`w-3.5 h-3.5 text-amber transition-transform duration-150 ${showThinking ? 'rotate-90' : ''}`}
+              >
+                <path fillRule="evenodd" d="M6.22 4.22a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.75.75 0 0 1-1.06-1.06L8.94 8 6.22 5.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="w-3.5 h-3.5 text-amber"
+              >
+                <path d="M8 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 1ZM10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM12.95 4.11a.75.75 0 1 0-1.06-1.06l-1.062 1.06a.75.75 0 0 0 1.061 1.062l1.06-1.061ZM15 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 15 8ZM11.89 12.95a.75.75 0 0 0 1.06-1.06l-1.06-1.062a.75.75 0 0 0-1.062 1.061l1.061 1.06ZM8 12a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 12ZM4.11 11.89a.75.75 0 1 0 1.06 1.06l1.062-1.06a.75.75 0 1 0-1.061-1.062l-1.06 1.061ZM1.75 8A.75.75 0 0 1 2 7.25h1.5a.75.75 0 0 1 0 1.5H2A.75.75 0 0 1 1.75 8ZM4.11 4.11a.75.75 0 1 0 1.06 1.06L6.23 4.11a.75.75 0 0 0-1.06-1.06l-1.06 1.06Z" />
+              </svg>
+              <span className="text-amber font-medium group-hover:text-amber-light">
+                {showThinking ? 'Hide' : 'Show'} thinking
+              </span>
+            </button>
+
+            {showThinking && (
+              <div className="mt-2 p-3 bg-stone/50 rounded-lg text-xs text-cloud leading-relaxed whitespace-pre-wrap animate-fadeInUp">
+                {message.thinking}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Main Content */}
         {isUser ? (
           <p className="text-body whitespace-pre-wrap leading-relaxed">
             {message.content}
@@ -81,20 +119,13 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        {/* Thinking Tokens & Timestamp */}
-        <div className="flex items-center gap-2 mt-2">
-          {message.thinkingTokens && (
-            <span className="text-2xs text-ghost bg-surface-secondary px-1.5 py-0.5 rounded tabular-nums">
-              {message.thinkingTokens.toLocaleString()} thinking tokens
-            </span>
-          )}
-          <p className="text-2xs text-ghost tabular-nums">
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </p>
-        </div>
+        {/* Timestamp */}
+        <p className="text-2xs text-ghost mt-2 tabular-nums">
+          {new Date(message.timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </p>
       </div>
     </div>
   );

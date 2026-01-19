@@ -53,7 +53,7 @@ export interface ElementInfo {
 export interface AIResponse {
   explanation: string;
   operations: StyleOperation[];
-  thinkingTokens?: number;  // Gemini thinking token count
+  thinking?: string;  // Gemini thinking text
 }
 
 // Operations the AI can perform
@@ -103,7 +103,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   operations?: StyleOperation[];  // Operations performed (for assistant messages)
-  thinkingTokens?: number;  // Gemini thinking token count (for assistant messages)
+  thinking?: string;  // Gemini thinking text (for assistant messages)
 }
 
 // Message types for extension communication

@@ -144,6 +144,7 @@ export interface ElementSummary {
   classes: string[];
   text?: string;
   childCount: number;
+  computedStyles?: Record<string, string>;  // Full computed styles (for first 5 children)
 }
 
 // Full context for a picked element
@@ -170,30 +171,6 @@ export interface PickedElementContext {
   previousSiblings: ElementSummary[];  // up to 2
   nextSiblings: ElementSummary[];      // up to 2
 
-  // Computed styles of the element
-  computedStyles: {
-    // Box model
-    width: string;
-    height: string;
-    padding: string;
-    margin: string;
-    // Visual
-    backgroundColor: string;
-    color: string;
-    fontSize: string;
-    fontFamily: string;
-    fontWeight: string;
-    // Layout
-    display: string;
-    position: string;
-    // Borders
-    border: string;
-    borderRadius: string;
-    // Text properties (for text replacement tasks)
-    lineHeight: string;
-    letterSpacing: string;
-    textTransform: string;
-    textDecoration: string;
-    textAlign: string;
-  };
+  // All computed styles of the element
+  computedStyles: Record<string, string>;
 }

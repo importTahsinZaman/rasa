@@ -287,6 +287,76 @@ function handleKeyDown(event: KeyboardEvent): void {
 }
 
 /**
+ * Extract all meaningful computed styles from an element
+ */
+function extractAllComputedStyles(element: Element): Record<string, string> {
+  const computed = window.getComputedStyle(element);
+  const styles: Record<string, string> = {};
+
+  // List of CSS properties we care about (skip internal/rarely-used ones)
+  const relevantProperties = [
+    // Box model
+    'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+    'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+    'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+    'box-sizing',
+    // Position & layout
+    'display', 'position', 'top', 'right', 'bottom', 'left', 'z-index',
+    'float', 'clear',
+    // Flexbox
+    'flex', 'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis',
+    'justify-content', 'align-items', 'align-self', 'align-content', 'gap', 'row-gap', 'column-gap',
+    'order',
+    // Grid
+    'grid-template-columns', 'grid-template-rows', 'grid-column', 'grid-row',
+    'grid-area', 'grid-auto-flow', 'grid-gap',
+    // Typography
+    'font-family', 'font-size', 'font-weight', 'font-style', 'font-variant',
+    'line-height', 'letter-spacing', 'word-spacing', 'text-align', 'text-decoration',
+    'text-transform', 'text-indent', 'text-overflow', 'white-space', 'word-break', 'word-wrap',
+    'vertical-align',
+    // Colors & backgrounds
+    'color', 'background', 'background-color', 'background-image', 'background-size',
+    'background-position', 'background-repeat', 'background-attachment',
+    // Borders
+    'border', 'border-width', 'border-style', 'border-color',
+    'border-top', 'border-right', 'border-bottom', 'border-left',
+    'border-radius', 'border-top-left-radius', 'border-top-right-radius',
+    'border-bottom-left-radius', 'border-bottom-right-radius',
+    // Outline
+    'outline', 'outline-width', 'outline-style', 'outline-color', 'outline-offset',
+    // Effects
+    'opacity', 'visibility', 'overflow', 'overflow-x', 'overflow-y',
+    'box-shadow', 'text-shadow',
+    // Transforms
+    'transform', 'transform-origin',
+    // Transitions & animations
+    'transition', 'animation',
+    // Other
+    'cursor', 'pointer-events', 'user-select', 'object-fit', 'object-position',
+    'list-style', 'list-style-type', 'list-style-position',
+    'table-layout', 'border-collapse', 'border-spacing',
+    'content', 'quotes',
+    // Filters & blend modes
+    'filter', 'backdrop-filter', 'mix-blend-mode',
+    // Clipping
+    'clip-path', 'mask',
+  ];
+
+  for (const prop of relevantProperties) {
+    const value = computed.getPropertyValue(prop);
+    // Only include non-empty, non-default-looking values
+    if (value && value !== 'none' && value !== 'normal' && value !== 'auto' &&
+        value !== '0px' && value !== '0s' && value !== 'rgba(0, 0, 0, 0)' &&
+        value !== 'rgb(0, 0, 0)' && value !== 'start' && value !== 'baseline') {
+      styles[prop] = value;
+    }
+  }
+
+  return styles;
+}
+
+/**
  * Extract full context for a picked element
  */
 function extractElementContext(element: Element): PickedElementContext {
@@ -308,51 +378,31 @@ function extractElementContext(element: Element): PickedElementContext {
     text = textContent;
   }
 
-  // Get direct children (max 10)
+  // Get direct children (max 10, but only first 5 get full styles)
   const children: ElementSummary[] = [];
   for (let i = 0; i < Math.min(element.children.length, 10); i++) {
-    children.push(extractElementSummary(element.children[i]));
+    const includeStyles = i < 5;  // First 5 children get full styles
+    children.push(extractElementSummary(element.children[i], includeStyles));
   }
 
-  // Get siblings
+  // Get siblings (no styles for siblings to keep context smaller)
   const previousSiblings: ElementSummary[] = [];
   const nextSiblings: ElementSummary[] = [];
 
   let sibling = element.previousElementSibling;
   for (let i = 0; i < 2 && sibling; i++) {
-    previousSiblings.unshift(extractElementSummary(sibling));
+    previousSiblings.unshift(extractElementSummary(sibling, false));
     sibling = sibling.previousElementSibling;
   }
 
   sibling = element.nextElementSibling;
   for (let i = 0; i < 2 && sibling; i++) {
-    nextSiblings.push(extractElementSummary(sibling));
+    nextSiblings.push(extractElementSummary(sibling, false));
     sibling = sibling.nextElementSibling;
   }
 
-  // Get computed styles
-  const computed = window.getComputedStyle(element);
-  const computedStyles = {
-    width: computed.width,
-    height: computed.height,
-    padding: computed.padding,
-    margin: computed.margin,
-    backgroundColor: computed.backgroundColor,
-    color: computed.color,
-    fontSize: computed.fontSize,
-    fontFamily: computed.fontFamily.split(',')[0].trim(),  // Just first font
-    fontWeight: computed.fontWeight,
-    display: computed.display,
-    position: computed.position,
-    border: computed.border,
-    borderRadius: computed.borderRadius,
-    // Text properties (for text replacement tasks)
-    lineHeight: computed.lineHeight,
-    letterSpacing: computed.letterSpacing,
-    textTransform: computed.textTransform,
-    textDecoration: computed.textDecoration,
-    textAlign: computed.textAlign,
-  };
+  // Get ALL computed styles for the main element
+  const computedStyles = extractAllComputedStyles(element);
 
   return {
     selector: generateSelector(element),
@@ -374,7 +424,7 @@ function extractElementContext(element: Element): PickedElementContext {
 /**
  * Extract a summary of an element (for siblings/children)
  */
-function extractElementSummary(element: Element): ElementSummary {
+function extractElementSummary(element: Element, includeStyles: boolean = false): ElementSummary {
   const tag = element.tagName.toLowerCase();
   let text: string | undefined;
 
@@ -396,11 +446,18 @@ function extractElementSummary(element: Element): ElementSummary {
     }
   }
 
-  return {
+  const summary: ElementSummary = {
     tag,
     id: element.id || undefined,
-    classes: Array.from(element.classList).slice(0, 3),  // Max 3 classes
+    classes: Array.from(element.classList).slice(0, 5),  // Max 5 classes
     text,
     childCount: element.children.length,
   };
+
+  // Include full computed styles if requested
+  if (includeStyles) {
+    summary.computedStyles = extractAllComputedStyles(element);
+  }
+
+  return summary;
 }

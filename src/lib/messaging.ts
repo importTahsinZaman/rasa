@@ -121,6 +121,17 @@ export async function undoOperations(
 }
 
 /**
+ * Format computed styles as CSS-like block
+ */
+function formatStyles(styles: Record<string, string>, indent: string = '  '): string[] {
+  const lines: string[] = [];
+  for (const [prop, value] of Object.entries(styles)) {
+    lines.push(`${indent}${prop}: ${value};`);
+  }
+  return lines;
+}
+
+/**
  * Format picked element context for display/AI prompt
  */
 export function formatPickedElementContext(context: PickedElementContext): string {
@@ -156,22 +167,41 @@ export function formatPickedElementContext(context: PickedElementContext): strin
   lines.push(`CSS SELECTOR: ${context.selector}`);
   lines.push('');
 
-  // Children
+  // Computed styles for selected element (all styles)
+  lines.push('COMPUTED STYLES:');
+  lines.push(`${context.selector} {`);
+  lines.push(...formatStyles(context.computedStyles));
+  lines.push('}');
+  lines.push('');
+
+  // Children with styles (first 5 have full styles)
   if (context.children.length > 0) {
     lines.push(`CHILDREN (${context.children.length} direct):`);
-    for (const child of context.children) {
+    for (let i = 0; i < context.children.length; i++) {
+      const child = context.children[i];
+      let childSelector = child.tag;
+      if (child.id) childSelector = `#${child.id}`;
+      else if (child.classes.length > 0) childSelector = `.${child.classes[0]}`;
+
       let childLine = `  <${child.tag}`;
-      if (child.id) childLine += `#${child.id}`;
-      if (child.classes.length > 0) childLine += `.${child.classes.join('.')}`;
+      if (child.id) childLine += ` id="${child.id}"`;
+      if (child.classes.length > 0) childLine += ` class="${child.classes.join(' ')}"`;
       childLine += '>';
       if (child.text) childLine += ` "${child.text}"`;
       if (child.childCount > 0) childLine += ` [${child.childCount} children]`;
       lines.push(childLine);
+
+      // Include styles for first 5 children
+      if (child.computedStyles && Object.keys(child.computedStyles).length > 0) {
+        lines.push(`  ${context.selector} > ${childSelector} {`);
+        lines.push(...formatStyles(child.computedStyles, '    '));
+        lines.push('  }');
+      }
     }
     lines.push('');
   }
 
-  // Siblings
+  // Siblings (no styles, just structure)
   const hasSiblings = context.previousSiblings.length > 0 || context.nextSiblings.length > 0;
   if (hasSiblings) {
     lines.push('SIBLINGS:');
@@ -183,32 +213,6 @@ export function formatPickedElementContext(context: PickedElementContext): strin
       lines.push(`  → <${sib.tag}${sib.id ? `#${sib.id}` : ''}${sib.classes.length > 0 ? `.${sib.classes[0]}` : ''}>${sib.text ? ` "${sib.text}"` : ''}`);
     }
     lines.push('');
-  }
-
-  // Computed styles
-  lines.push('CURRENT STYLES:');
-  const styles = context.computedStyles;
-  lines.push(`  size: ${styles.width} × ${styles.height}`);
-  lines.push(`  padding: ${styles.padding}`);
-  lines.push(`  margin: ${styles.margin}`);
-  lines.push(`  background: ${styles.backgroundColor}`);
-  lines.push(`  color: ${styles.color}`);
-  lines.push(`  font: ${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`);
-  lines.push(`  line-height: ${styles.lineHeight}`);
-  lines.push(`  letter-spacing: ${styles.letterSpacing}`);
-  lines.push(`  text-align: ${styles.textAlign}`);
-  if (styles.textTransform !== 'none') {
-    lines.push(`  text-transform: ${styles.textTransform}`);
-  }
-  if (styles.textDecoration !== 'none' && !styles.textDecoration.startsWith('none')) {
-    lines.push(`  text-decoration: ${styles.textDecoration}`);
-  }
-  lines.push(`  display: ${styles.display}, position: ${styles.position}`);
-  if (styles.border !== 'none' && styles.border !== '0px none rgb(0, 0, 0)') {
-    lines.push(`  border: ${styles.border}`);
-  }
-  if (styles.borderRadius !== '0px') {
-    lines.push(`  border-radius: ${styles.borderRadius}`);
   }
 
   return lines.join('\n');

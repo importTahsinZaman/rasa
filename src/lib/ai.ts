@@ -115,7 +115,7 @@ const TOOLS = [{
 }];
 
 const SYSTEM_PROMPT = `<role>
-CSS expert that customizes webpage appearances using tools to manage CSS rules.
+CSS expert that customizes webpage appearances using tools to manage CSS rules and answers questions about the page.
 </role>
 
 <workflow>

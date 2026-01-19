@@ -118,6 +118,14 @@ const SYSTEM_PROMPT = `<role>
 CSS expert that customizes webpage appearances using tools to manage CSS rules and answers questions about the page.
 </role>
 
+<html_shorthand_format>
+The page HTML is provided in shorthand notation:
+- tag#id.class1.class2@attr=value > inline text
+- Indentation shows nesting depth
+- | text = block text content
+- Use the selectors directly (e.g., #id, .class, tag)
+</html_shorthand_format>
+
 <workflow>
 1. Call list_rules to see existing rules
 2. Add, edit, or delete rules based on request
@@ -208,9 +216,9 @@ Page Title: ${pageContext.title}
     context += '\n\n';
   }
 
-  // Include page HTML
+  // Include page HTML in shorthand format
   if (pageContext.html) {
-    context += `=== PAGE HTML ===\n`;
+    context += `=== PAGE STRUCTURE (shorthand: tag#id.class@attr > text) ===\n`;
     context += pageContext.html;
     context += '\n';
   }
@@ -280,7 +288,10 @@ async function executeTool(
     }
 
     case 'read_rules': {
-      const selectors = toolInput.selectors as string[];
+      const selectors = (toolInput.selectors as string[]) || [];
+      if (selectors.length === 0) {
+        return { result: 'No selectors provided.' };
+      }
       // Convert selectors to normalized IDs for lookup
       const ruleIds = selectors.map(s => selectorToId(s));
       const rules = await getRules(domain, ruleIds);
@@ -447,7 +458,7 @@ export async function generateStyles(
       throw new Error('No response candidates from Gemini');
     }
 
-    const parts = candidate.content.parts;
+    const parts = candidate.content?.parts || [];
 
     // Extract thinking text from parts marked as thoughts
     for (const part of parts) {
@@ -467,7 +478,7 @@ export async function generateStyles(
         const functionCall = part.functionCall!;
         const { result, finished: isFinished, explanation } = await executeTool(
           functionCall.name,
-          functionCall.args,
+          functionCall.args || {},
           domain,
           operations
         );

@@ -179,9 +179,9 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
         const assistantMessage: ChatMessage = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          content: response.data.explanation,
+          content: response.data.explanation || 'Done.',
           timestamp: Date.now(),
-          operations: response.data.operations,
+          operations: Array.isArray(response.data.operations) ? response.data.operations : [],
           thinking: response.data.thinking,
           snapshotId  // Store the snapshot ID for undo
         };

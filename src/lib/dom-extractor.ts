@@ -1,10 +1,11 @@
 import type { PageContext, ElementInfo } from '../types';
+import { htmlToShorthand } from './html-shorthand';
 
 // Maximum number of CSS variables to extract
 const MAX_CSS_VARIABLES = 100;
 
 // Maximum characters for HTML/CSS extraction
-const MAX_HTML_LENGTH = 150000;  // ~150KB
+const MAX_HTML_LENGTH = 100000;  // ~100KB (shorthand is more compact)
 const MAX_CSS_LENGTH = 150000;   // ~150KB
 
 /**
@@ -55,47 +56,34 @@ function extractStylesheets(): string {
 }
 
 /**
- * Extract the page HTML, cleaned up for AI consumption
- * Removes scripts, Rasa elements, and excessive whitespace
+ * Extract the page HTML in shorthand format for AI consumption
+ * Uses compact notation: tag#id.class@attr=value > text
  */
 function extractHTML(): string {
   try {
-    // Clone the body to avoid modifying the actual DOM
-    const bodyClone = document.body.cloneNode(true) as HTMLElement;
-
-    // Remove elements we don't want to send
-    const removeSelectors = [
-      'script',
-      'style',
-      'noscript',
-      'iframe[src*="rasa"]',
-      '[data-rasa]',
-      '#rasa-styles',
-      '#rasa-root'
-    ];
-
-    for (const selector of removeSelectors) {
-      bodyClone.querySelectorAll(selector).forEach(el => el.remove());
-    }
-
-    // Get the HTML and clean it up
-    let html = bodyClone.innerHTML;
-
-    // Collapse excessive whitespace
-    html = html.replace(/\s+/g, ' ');
-    // Remove empty class attributes
-    html = html.replace(/\s*class=""\s*/g, ' ');
-    // Trim
-    html = html.trim();
+    let shorthand = htmlToShorthand(document.body, {
+      maxDepth: 30,
+      skipHidden: true,
+      includeComments: false
+    });
 
     // Truncate if too long
-    if (html.length > MAX_HTML_LENGTH) {
-      html = html.slice(0, MAX_HTML_LENGTH) + '\n<!-- ... HTML truncated due to size ... -->';
+    if (shorthand.length > MAX_HTML_LENGTH) {
+      const lines = shorthand.split('\n');
+      let truncated = '';
+      for (const line of lines) {
+        if (truncated.length + line.length + 1 > MAX_HTML_LENGTH) {
+          truncated += '\n... (truncated)';
+          break;
+        }
+        truncated += (truncated ? '\n' : '') + line;
+      }
+      shorthand = truncated;
     }
 
-    return html;
-  } catch {
-    return '<!-- Error extracting HTML -->';
+    return shorthand;
+  } catch (e) {
+    return '// Error extracting HTML: ' + (e as Error).message;
   }
 }
 

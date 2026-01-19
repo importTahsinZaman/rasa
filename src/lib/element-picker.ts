@@ -14,16 +14,16 @@ let currentTarget: Element | null = null;
 let onPickCallback: ((context: PickedElementContext) => void) | null = null;
 let onCancelCallback: (() => void) | null = null;
 
-// Styles for the overlay
+// Styles for the overlay — using accent red #FD0A34
 const OVERLAY_STYLES = `
   position: fixed;
   pointer-events: none;
-  background: rgba(122, 148, 88, 0.25);
-  border: 2px solid rgba(122, 148, 88, 0.8);
+  background: rgba(253, 10, 52, 0.2);
+  border: 2px solid rgba(253, 10, 52, 0.8);
   border-radius: 4px;
   z-index: 2147483647;
   transition: all 100ms ease-out;
-  box-shadow: 0 0 0 4px rgba(122, 148, 88, 0.1);
+  box-shadow: 0 0 0 4px rgba(253, 10, 52, 0.1);
 `;
 
 const TOOLTIP_STYLES = `
@@ -56,7 +56,7 @@ const INSTRUCTIONS_STYLES = `
   padding: 10px 20px;
   border-radius: 8px;
   z-index: 2147483647;
-  border: 1px solid rgba(122, 148, 88, 0.3);
+  border: 1px solid rgba(253, 10, 52, 0.3);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -101,7 +101,7 @@ export function startPicker(
   instructionsEl.id = 'rasa-picker-instructions';
   instructionsEl.style.cssText = INSTRUCTIONS_STYLES;
   instructionsEl.innerHTML = `
-    <span style="color: #9fb87a;">●</span>
+    <span style="color: #FD0A34;">●</span>
     <span>Click elements to select them</span>
     <span style="color: #5c5c6a;">|</span>
     <span style="color: #8b8b9a;">ESC to finish</span>
@@ -254,10 +254,10 @@ function handleClick(event: MouseEvent): void {
 
     // Flash the overlay to indicate selection
     if (overlay) {
-      overlay.style.background = 'rgba(122, 148, 88, 0.5)';
+      overlay.style.background = 'rgba(253, 10, 52, 0.5)';
       setTimeout(() => {
         if (overlay) {
-          overlay.style.background = 'rgba(122, 148, 88, 0.25)';
+          overlay.style.background = 'rgba(253, 10, 52, 0.2)';
         }
       }, 150);
     }
@@ -279,9 +279,11 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   if (event.key === 'Escape') {
     event.preventDefault();
+    // Save callback before stopPicker clears it
+    const callback = onCancelCallback;
     stopPicker();
-    if (onCancelCallback) {
-      onCancelCallback();
+    if (callback) {
+      callback();
     }
   }
 }

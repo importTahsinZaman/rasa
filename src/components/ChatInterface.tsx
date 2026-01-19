@@ -21,6 +21,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pickedElements, setPickedElements] = useState<PickedElementContext[]>([]);
+  const [isPickerActive, setIsPickerActive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -55,6 +56,9 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
           return [...prev, message.context!];
         });
         // Picker stays active automatically now - no need to restart
+      } else if (message.type === 'ELEMENT_PICKER_CANCELLED') {
+        console.log('[Rasa Sidepanel] Picker cancelled');
+        setIsPickerActive(false);
       }
     };
 
@@ -66,6 +70,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        setIsPickerActive(false);
         cancelElementPicker(tabId).catch(() => {
           // Ignore errors - picker might not be active
         });
@@ -80,6 +85,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
   const handleStartPicker = useCallback(async () => {
     try {
       await startElementPicker(tabId);
+      setIsPickerActive(true);
     } catch (error) {
       console.error('Failed to start picker:', error);
     }
@@ -217,7 +223,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
       <div className="message-list">
         {messages.length === 0 ? (
           <div className="flex flex-col flex-1 justify-center items-center py-8">
-            <p className="mb-6 text-body text-muted text-center">
+            <p className="mb-6 font-semibold text-body text-primary text-center">
               Describe how you want to customize this page.
             </p>
 
@@ -259,7 +265,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
+      {/* Input Area — Floating Input Bar */}
       <div className="chat-input-area">
         {/* Picked Elements List */}
         {pickedElements.length > 0 && (
@@ -294,49 +300,48 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
           </div>
         )}
 
-
         <form onSubmit={handleSubmit}>
-          <div className="chat-input-wrapper">
-            {/* Element Picker Button */}
-            <button
-              type="button"
-              onClick={handleStartPicker}
-              disabled={loading}
-              className="picker-btn"
-              aria-label="Select element on page"
-              title="Select an element on the page"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                <path fillRule="evenodd" d="M10 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 1ZM5.05 3.05a.75.75 0 0 1 1.06 0l1.062 1.06A.75.75 0 1 1 6.11 5.173L5.05 4.11a.75.75 0 0 1 0-1.06ZM14.95 3.05a.75.75 0 0 1 0 1.06l-1.06 1.062a.75.75 0 0 1-1.062-1.061l1.061-1.06a.75.75 0 0 1 1.06 0ZM3 8a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 3 8ZM14 8a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 14 8ZM7.172 13.828a.75.75 0 0 1 0 1.061l-1.06 1.06a.75.75 0 0 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0ZM10 11a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 11ZM10 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm-5 3a5 5 0 1 1 10 0 5 5 0 0 1-10 0Z" clipRule="evenodd" />
-              </svg>
-            </button>
-
+          <div className="chat-input-container">
+            {/* Textarea — 2 lines */}
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={pickedElements.length > 0 ? "What do you want to change?" : "Describe the changes you want..."}
-              className="flex-1 font-body input-chat"
-              rows={1}
+              className="chat-input-textarea"
+              rows={2}
               disabled={loading}
               autoFocus
             />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="chat-send-btn"
-              aria-label="Send message"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="w-5 h-5"
+
+            {/* Bottom row — picker left, send right */}
+            <div className="chat-input-actions">
+              <button
+                type="button"
+                onClick={handleStartPicker}
+                disabled={loading}
+                className={`picker-btn ${isPickerActive ? 'picker-btn--active' : ''}`}
+                aria-label="Select element on page"
+                title="Select an element on the page"
               >
-                <path d="M3.105 2.288a.75.75 0 0 0-.826.95l1.414 4.926A1.5 1.5 0 0 0 5.135 9.25h6.115a.75.75 0 0 1 0 1.5H5.135a1.5 1.5 0 0 0-1.442 1.086l-1.414 4.926a.75.75 0 0 0 .826.95 28.897 28.897 0 0 0 15.293-7.155.75.75 0 0 0 0-1.114A28.897 28.897 0 0 0 3.105 2.288Z" />
-              </svg>
-            </button>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-11.25a.75.75 0 0 0-1.5 0v2.5h-2.5a.75.75 0 0 0 0 1.5h2.5v2.5a.75.75 0 0 0 1.5 0v-2.5h2.5a.75.75 0 0 0 0-1.5h-2.5v-2.5Z" clipRule="evenodd" />
+                </svg>
+                <span>Attach Element</span>
+              </button>
+
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="chat-send-btn"
+                aria-label="Send message"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M10 17a.75.75 0 0 1-.75-.75V5.612L5.29 9.77a.75.75 0 0 1-1.08-1.04l5.25-5.5a.75.75 0 0 1 1.08 0l5.25 5.5a.75.75 0 1 1-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0 1 10 17Z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
           </div>
         </form>
       </div>

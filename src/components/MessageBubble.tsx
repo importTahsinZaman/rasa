@@ -66,8 +66,8 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             </button>
 
             {showThinking && (
-              <div className="mt-2 p-3 bg-stone/50 rounded-lg text-xs text-cloud leading-relaxed whitespace-pre-wrap animate-fadeInUp">
-                {message.thinking}
+              <div className="mt-2 p-3 bg-void/60 border border-subtle rounded-lg text-xs text-cloud leading-relaxed animate-fadeInUp prose prose-sm prose-invert prose-p:my-1.5 prose-headings:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-code:text-amber-light prose-code:bg-stone prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none max-w-none">
+                <ReactMarkdown>{message.thinking}</ReactMarkdown>
               </div>
             )}
           </div>

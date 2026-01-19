@@ -174,13 +174,13 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
       {/* Message List */}
       <div className="message-list">
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-8">
-            <p className="text-body text-muted mb-6 text-center">
+          <div className="flex flex-col flex-1 justify-center items-center py-8">
+            <p className="mb-6 text-body text-muted text-center">
               Describe how you want to customize this page.
             </p>
 
-            <div className="w-full space-y-2">
-              <p className="text-caption text-center mb-3">Try</p>
+            <div className="space-y-2 w-full">
+              <p className="mb-3 text-caption text-center">Try</p>
               {PROMPT_SUGGESTIONS.map((suggestion, index) => (
                 <button
                   key={suggestion}
@@ -199,13 +199,13 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
         )}
 
         {loading && (
-          <div className="flex items-center gap-3 text-muted py-2">
+          <div className="flex items-center gap-3 py-2 text-muted">
             <div className="thinking-indicator">
               <span className="thinking-dot"></span>
               <span className="thinking-dot"></span>
               <span className="thinking-dot"></span>
             </div>
-            <span className="text-small">Generating styles...</span>
+            <span className="text-small">Cooking...</span>
           </div>
         )}
 
@@ -270,7 +270,7 @@ export default function ChatInterface({ tabId, domain, onStylesApplied }: ChatIn
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={pickedElements.length > 0 ? "What do you want to change?" : "Describe the changes you want..."}
-              className="input-chat flex-1 font-body"
+              className="flex-1 font-body input-chat"
               rows={1}
               disabled={loading}
               autoFocus
